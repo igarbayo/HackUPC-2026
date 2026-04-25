@@ -23,6 +23,7 @@ _executor = ThreadPoolExecutor(max_workers=8)
 # ── C++ parameter builders ────────────────────────────────────────────────────
 
 def build_cpp_params(
+    num_aisles: int,
     num_slots: int,
     num_y: int,
     num_sides: int,
@@ -30,6 +31,7 @@ def build_cpp_params(
     boxes: list[scheduler_cpp.Box] | None = None,
 ) -> scheduler_cpp.Params:
     p = scheduler_cpp.Params()
+    p.num_aisles = num_aisles
     p.num_slots = num_slots
     p.num_y = num_y
     p.num_sides = num_sides

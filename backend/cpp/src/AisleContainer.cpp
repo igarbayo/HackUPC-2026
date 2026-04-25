@@ -114,14 +114,15 @@ void AisleContainer::setEventLog(std::vector<Event>* log) {
     for (auto& aisle : aisles_) aisle.setEventLog(log);
 }
 
-AisleSnap AisleContainer::snapshot() const {
-    AisleSnap snap;
-    for (const auto& aisle : aisles_) {
-        AisleSnap s = aisle.snapshot();
-        for (auto& sh : s.shuttles)
-            snap.shuttles.push_back(std::move(sh));
+std::vector<AisleSnap> AisleContainer::snapshot() const {
+    std::vector<AisleSnap> snaps;
+    snaps.reserve(aisles_.size());
+    for (int i = 0; i < (int)aisles_.size(); ++i) {
+        AisleSnap s = aisles_[i].snapshot();
+        s.aisle_id  = i;
+        snaps.push_back(std::move(s));
     }
-    return snap;
+    return snaps;
 }
 
 // ── metadata aggregation ──────────────────────────────────────────────────────

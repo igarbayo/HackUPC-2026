@@ -15,8 +15,8 @@ public:
     void               requestOutput(const Family& f);
     std::optional<Box> collectReadyOutput(const Family& f);
 
-    Metadata           metadata() const;
-    AisleSnap          snapshot() const;
+    Metadata                metadata() const;
+    std::vector<AisleSnap>  snapshot() const;
 
     void               tick();
     void               setEventLog(std::vector<Event>* log);

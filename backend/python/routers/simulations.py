@@ -42,6 +42,7 @@ def _build_cpp_params(params: SimulationParams) -> scheduler_cpp.Params:
         boxes = sched.generate_boxes(gp)
 
     return sched.build_cpp_params(
+        num_aisles=params.num_aisles,
         num_slots=params.num_slots,
         num_y=params.num_y,
         num_sides=params.num_sides,

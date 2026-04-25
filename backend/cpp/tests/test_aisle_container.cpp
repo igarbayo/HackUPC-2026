@@ -62,14 +62,15 @@ void test_input_routes_to_aisle_with_free_slot() {
     container.input(makeBox("box0", "A"));
     for (int t = 0; t < 100; ++t) container.tick();
 
-    // Identify which aisle received box0 (shuttles are ordered: [0]=aisle0, [1]=aisle1).
+    // snapshot() now returns one AisleSnap per aisle.
     auto snap0 = container.snapshot();
-    assert(snap0.shuttles.size() == 2 && "expected 2 shuttles (one per aisle)");
+    assert(snap0.size() == 2 && "expected 2 aisle snaps");
 
     int aisleWithBox0 = -1;
     for (int i = 0; i < 2; ++i)
-        for (const auto& fb : snap0.shuttles[i].floor_boxes)
-            if (fb.id == "box0") aisleWithBox0 = i;
+        for (const auto& sh : snap0[i].shuttles)
+            for (const auto& fb : sh.floor_boxes)
+                if (fb.id == "box0") aisleWithBox0 = i;
     assert(aisleWithBox0 != -1 && "box0 must be stored before routing the second box");
 
     // That aisle's only slot is now occupied (freeZ1_ empty) — second box must go elsewhere.
@@ -79,8 +80,9 @@ void test_input_routes_to_aisle_with_free_slot() {
     auto snap1 = container.snapshot();
     int aisleWithBox1 = -1;
     for (int i = 0; i < 2; ++i)
-        for (const auto& fb : snap1.shuttles[i].floor_boxes)
-            if (fb.id == "box1") aisleWithBox1 = i;
+        for (const auto& sh : snap1[i].shuttles)
+            for (const auto& fb : sh.floor_boxes)
+                if (fb.id == "box1") aisleWithBox1 = i;
 
     assert(aisleWithBox1 != -1            && "box1 must be stored");
     assert(aisleWithBox1 != aisleWithBox0 && "box1 must be routed to the other aisle (first is full)");
