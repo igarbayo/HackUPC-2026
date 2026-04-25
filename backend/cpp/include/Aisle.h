@@ -66,10 +66,8 @@ public:
     // Find the best accessible box of the given family for a specific shuttle.
     std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
 
-    // Find best free slot at (side, y) for input placement.
-    // preferNear=true  → smallest x (hot family)
-    // preferNear=false → largest x  (cold family)
-    std::optional<Position> findFreeSlot(int side, int y, bool preferNear) const;
+    // Find best free slot at level y for input placement using numeric cost function.
+    std::optional<Position> findBestInputSlot(const Box& box, int y) const;
 
 private:
     int                      length_;
