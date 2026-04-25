@@ -59,9 +59,9 @@ public:
     Slot&               slotAt(Position pos);
     const Slot&         slotAt(Position pos) const;
 
-    // Find nearest accessible slot of given family at the given Y level.
-    // Returns nullopt if none found at that Y level.
-    std::optional<Position> findNearestWithFamily(const Family& f, int yLevel) const;
+    // Find the best accessible box of the given family for a specific shuttle.
+    // Cost = dist(shuttle→box) + dist(box→port). Ties broken by largest x (prefer freeing far slots).
+    std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
 
     // Find best free slot at (side, y) for input placement.
     // preferNear=true  → smallest x (hot family)
