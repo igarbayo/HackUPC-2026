@@ -4,7 +4,7 @@
 
 using Family = std::string;
 using Tick   = std::uint64_t;
-using BoxId  = std::uint64_t;
+using BoxId  = std::string;
 using SlotId = std::uint64_t;
 
 struct Position {
@@ -24,7 +24,7 @@ struct Position {
 struct Event {
     std::string type;
     Tick        logical_time = 0;
-    BoxId       box_id       = 0;
+    BoxId       box_id       = {};
     int         pallet_id    = -1;  // pallet slot index; -1 if not applicable
     Family      family       = {};
 };
