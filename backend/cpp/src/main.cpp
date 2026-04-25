@@ -4,7 +4,8 @@
 int main() {
     Params p;
     p.num_slots    = 20;
-    p.num_shuttles = 2;
+    p.num_y        = 2;
+    p.num_sides    = 1;
     p.max_ticks    = 10000;
 
     static BoxId nextId = 1;

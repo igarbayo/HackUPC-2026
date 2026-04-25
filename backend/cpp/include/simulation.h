@@ -6,7 +6,8 @@
 struct Params {
     std::vector<Box> boxes;
     int num_slots    = 20;
-    int num_shuttles = 2;
+    int num_y        = 2;   // height levels; one shuttle per level
+    int num_sides    = 1;   // 1=Left only, 2=Left+Right
     int max_ticks    = 10000;
 };
 

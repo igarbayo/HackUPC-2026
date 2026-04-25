@@ -23,10 +23,11 @@ PYBIND11_MODULE(scheduler_cpp, m) {
 
     py::class_<Params>(m, "Params")
         .def(py::init<>())
-        .def_readwrite("boxes",        &Params::boxes)
-        .def_readwrite("num_slots",    &Params::num_slots)
-        .def_readwrite("num_shuttles", &Params::num_shuttles)
-        .def_readwrite("max_ticks",    &Params::max_ticks);
+        .def_readwrite("boxes",     &Params::boxes)
+        .def_readwrite("num_slots", &Params::num_slots)
+        .def_readwrite("num_y",     &Params::num_y)
+        .def_readwrite("num_sides", &Params::num_sides)
+        .def_readwrite("max_ticks", &Params::max_ticks);
 
     m.def("run_simulation", &run_simulation,
           py::arg("params"),

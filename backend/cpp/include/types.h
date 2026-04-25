@@ -8,9 +8,13 @@ using BoxId  = std::uint64_t;
 using SlotId = std::uint64_t;
 
 struct Position {
-    int x = 0;
-    int y = 0;
-    bool operator==(const Position& o) const { return x == o.x && y == o.y; }
+    int x    = 0;   // -1=port/head; 0..length-1 storage (0-based)
+    int y    = 1;   // height level: 1..numY
+    int z    = 1;   // depth: 1 (front/accessible) or 2 (back)
+    int side = 1;   // 1=Left, 2=Right
+    bool operator==(const Position& o) const {
+        return x == o.x && y == o.y && z == o.z && side == o.side;
+    }
     bool operator!=(const Position& o) const { return !(*this == o); }
 };
 

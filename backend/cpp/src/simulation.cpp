@@ -12,7 +12,8 @@ std::vector<Event> run_simulation(const Params& p) {
     for (const auto& b : p.boxes) belt.push(b);
 
     // Inicializamos el aisle y el scheduler
-    Aisle              aisle(p.num_slots, p.num_shuttles, Position{-1, 0});
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
     Scheduler          scheduler(aisle, robots, belt, &log);
 
