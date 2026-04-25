@@ -10,6 +10,7 @@ from models import (
     BoxModel,
     EventModel,
     InstructionModel,
+    MetricsModel,
     PalletStateModel,
     PositionModel,
     RobotStateModel,
@@ -23,6 +24,7 @@ _executor = ThreadPoolExecutor(max_workers=8)
 # ── C++ parameter builders ────────────────────────────────────────────────────
 
 def build_cpp_params(
+    num_aisles: int,
     num_slots: int,
     num_y: int,
     num_sides: int,
@@ -30,6 +32,7 @@ def build_cpp_params(
     boxes: list[scheduler_cpp.Box] | None = None,
 ) -> scheduler_cpp.Params:
     p = scheduler_cpp.Params()
+    p.num_aisles = num_aisles
     p.num_slots = num_slots
     p.num_y = num_y
     p.num_sides = num_sides
@@ -62,19 +65,7 @@ def _to_box_model(b, position=None) -> BoxModel:
     )
 
 
-def _to_instruction_model(instr) -> InstructionModel:
-    return InstructionModel(
-        kind=instr.kind,
-        family=instr.family,
-        box_id=instr.box_id,
-        issued_at=instr.issued_at,
-        priority=instr.priority,
-        seq=instr.seq,
-        target=_to_position(instr.target),
-    )
-
-
-def _snapshot_to_tick_state(snap) -> TickStateModel:
+def _snapshot_to_tick_state(snap, metrics: MetricsModel | None = None) -> TickStateModel:
     aisles = []
     for a in snap.aisles:
         shuttles = []
@@ -91,14 +82,28 @@ def _snapshot_to_tick_state(snap) -> TickStateModel:
                     floor_boxes=floor_boxes,
                 )
             )
-        aisles.append(
-            AisleStateModel(
-                aisle_id=a.aisle_id,
-                shuttles=shuttles,
-                pending_fifo=[_to_instruction_model(i) for i in a.pending_fifo],
-                pending_sorted=[_to_instruction_model(i) for i in a.pending_sorted],
+        pending_fifo = [
+            InstructionModel(
+                kind=i.kind, family=i.family, box_id=i.box_id,
+                issued_at=i.issued_at, priority=i.priority, seq=i.seq,
+                target=_to_position(i.target),
             )
-        )
+            for i in a.pending_fifo
+        ]
+        pending_sorted = [
+            InstructionModel(
+                kind=i.kind, family=i.family, box_id=i.box_id,
+                issued_at=i.issued_at, priority=i.priority, seq=i.seq,
+                target=_to_position(i.target),
+            )
+            for i in a.pending_sorted
+        ]
+        aisles.append(AisleStateModel(
+            aisle_id=a.aisle_id,
+            shuttles=shuttles,
+            pending_fifo=pending_fifo,
+            pending_sorted=pending_sorted,
+        ))
     pallets = []
     for p in snap.pallets:
         boxes = [_to_box_model(b) for b in p.boxes]
@@ -115,6 +120,7 @@ def _snapshot_to_tick_state(snap) -> TickStateModel:
         tick=snap.tick,
         aisles=aisles,
         robot=RobotStateModel(pallets=pallets),
+        metrics=metrics if metrics is not None else MetricsModel(),
     )
 
 
@@ -125,6 +131,7 @@ def _event_to_model(e) -> EventModel:
         box_id=e.box_id,
         pallet_id=e.pallet_id,
         family=e.family,
+        box_count=getattr(e, "box_count", -1),
     )
 
 
@@ -147,17 +154,50 @@ def submit(sim_id: str, params: scheduler_cpp.Params) -> None:
             queue.markDone()
 
     def drain() -> None:
-        while True:
-            snap = queue.pop()
-            if snap is None:
-                break
-            for e in snap.events:
-                store.events[sim_id].append(_event_to_model(e))
-            store.snapshots[sim_id].append(_snapshot_to_tick_state(snap))
-        if store.simulations[sim_id].status != "error":
-            store.simulations[sim_id].status = "done"
-            store.simulations[sim_id].finished_at = datetime.now(timezone.utc)
-        store.done[sim_id] = True
+        _totals: dict = {"total": 0, "full": 0, "boxes": 0, "by_family": {}}
+        # Fallback box counter per slot — used when box_count is not exposed by the .so
+        _slot_boxes: dict = {}
+        try:
+            while True:
+                snap = queue.pop()
+                if snap is None:
+                    break
+                for e in snap.events:
+                    store.events[sim_id].append(_event_to_model(e))
+                    if e.type == "box_on_pallet":
+                        slot = e.pallet_id
+                        _slot_boxes[slot] = _slot_boxes.get(slot, 0) + 1
+                    elif e.type == "pallet_dispatched":
+                        bc = getattr(e, "box_count", -1)
+                        if bc < 0:
+                            bc = _slot_boxes.pop(e.pallet_id, 0)
+                        else:
+                            _slot_boxes.pop(e.pallet_id, None)
+                        _totals["total"] += 1
+                        if bc == 12:
+                            _totals["full"] += 1
+                        if bc > 0:
+                            _totals["boxes"] += bc
+                        _totals["by_family"][e.family] = _totals["by_family"].get(e.family, 0) + max(bc, 0)
+                t = _totals["total"]
+                metrics = MetricsModel(
+                    total_pallets_sent=t,
+                    full_pallets=_totals["full"],
+                    full_pallet_ratio=round(_totals["full"] / t * 100, 1) if t else 0.0,
+                    total_boxes_sent=_totals["boxes"],
+                    avg_fill_rate=round(_totals["boxes"] / (t * 12) * 100, 1) if t else 0.0,
+                    boxes_by_family=dict(_totals["by_family"]),
+                )
+                store.snapshots[sim_id].append(_snapshot_to_tick_state(snap, metrics))
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            store.simulations[sim_id].status = "error"
+        finally:
+            if store.simulations[sim_id].status != "error":
+                store.simulations[sim_id].status = "done"
+                store.simulations[sim_id].finished_at = datetime.now(timezone.utc)
+            store.done[sim_id] = True
 
     _executor.submit(run_cpp)
     _executor.submit(drain)

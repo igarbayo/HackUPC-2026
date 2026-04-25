@@ -38,21 +38,22 @@ void Shuttle::tick(Aisle& aisle) {
     case Phase::MovingToPickup:
         if (pos_.x == pickup_.x) {
             phase_ = Phase::Loading;
-            // Fall through: process Loading in same tick
+            manipulationTimer_ = MANIPULATION_TICKS;
         } else {
             moveToward(pickup_);
-            break;
         }
-        [[fallthrough]];
+        break;
 
     case Phase::Loading:
+        if (--manipulationTimer_ > 0) break;
         if (isInputMission_) {
             auto boxOpt = aisle.takeFromInputBuffer();
             if (boxOpt) {
                 carried_ = std::move(*boxOpt);
                 phase_ = Phase::MovingToDrop;
+            } else {
+                manipulationTimer_ = 1; // retry next tick
             }
-            // If no box yet (shouldn't happen in normal flow), stay in Loading
         } else {
             Slot& s = aisle.slotAt(pickup_);
             if (pickup_.z == 2 && s.hasZ2()) {
@@ -65,20 +66,23 @@ void Shuttle::tick(Aisle& aisle) {
                 aisle.notifyBoxTaken(b, pickup_);
                 carried_ = std::move(b);
                 phase_ = Phase::MovingToDrop;
+            } else {
+                manipulationTimer_ = 1; // slot not accessible, retry next tick
             }
-            // else slot not accessible (race condition), retry next tick
         }
         break;
 
     case Phase::MovingToDrop:
         if (pos_.x == drop_.x) {
             phase_ = Phase::Unloading;
+            manipulationTimer_ = MANIPULATION_TICKS;
         } else {
             moveToward(drop_);
         }
         break;
 
     case Phase::Unloading:
+        if (--manipulationTimer_ > 0) break;
         if (carried_) {
             if (isInputMission_) {
                 Slot& s = aisle.slotAt(drop_);

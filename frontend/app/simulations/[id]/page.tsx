@@ -2,23 +2,36 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { FF, T } from '@/lib/tokens'
 import { useSimulationStream } from '@/lib/SimulationStreamContext'
 import type { StreamStatus, InstructionState } from '@/lib/SimulationStreamContext'
 
-type Tab = 'warehouse' | 'aisle' | 'shuttle' | 'simulation'
+type Tab = 'warehouse' | 'aisle' | 'shuttle' | 'simulation' | '3d'
+const Warehouse3DView = dynamic(
+  () => import('@/components/Warehouse3DView'),
+  { ssr: false, loading: () => null },
+)
+
 type WsStatus = StreamStatus
+
+interface SimParams {
+  num_slots: number
+  num_y: number
+  num_sides: number
+}
 
 // ── Constants ──────────────────────────────────────────────────────────
 
 const PALLET_CAPACITY = 12
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'warehouse',  label: 'Warehouse'  },
-  { id: 'aisle',      label: 'Aisle'      },
-  { id: 'shuttle',    label: 'Shuttle'    },
+  { id: 'warehouse', label: 'Warehouse' },
+  { id: 'aisle',     label: 'Aisle'     },
+  { id: 'shuttle',   label: 'Shuttle'   },
   { id: 'simulation', label: 'Simulation' },
+  { id: '3d',        label: '3D'        },
 ]
 
 const STATUS_LABEL: Record<WsStatus, string> = {
@@ -51,12 +64,22 @@ function Metric({ label, value, unit }: { label: string; value: number | null; u
 
 // ── Main component ─────────────────────────────────────────────────────
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 export default function SimulationVisualizePage() {
   const { id }           = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<Tab>('warehouse')
   const [selectedAisle, setSelectedAisle] = useState(0)
+  const [simParams, setSimParams] = useState<SimParams | null>(null)
   const { streams, setSpeed } = useSimulationStream()
   const stream = streams[id] ?? { status: 'connecting' as WsStatus, snapshot: null, totalTicks: null, speed: 1 }
+
+  useEffect(() => {
+    fetch(`${API_BASE}/simulations/${id}`)
+      .then(r => r.json())
+      .then((d: { params: SimParams }) => setSimParams(d.params))
+      .catch(() => {})
+  }, [id])
 
   function handleSpeedChange(v: number) {
     setSpeed(id, Math.max(0.1, v))
@@ -70,6 +93,7 @@ export default function SimulationVisualizePage() {
   const avgFill = pallets.length > 0
     ? Math.round(pallets.reduce((sum, p) => sum + p.placed_count, 0) / pallets.length / PALLET_CAPACITY * 100)
     : null
+
 
   // ── Tab content ────────────────────────────────────────────────────────
   function renderWarehouse() {
@@ -294,11 +318,14 @@ export default function SimulationVisualizePage() {
     )
   }
 
+  function render3D() { return null }
+
   const TAB_RENDER: Record<Tab, () => React.ReactNode> = {
     warehouse:  renderWarehouse,
     aisle:      renderAisle,
     shuttle:    renderShuttle,
     simulation: renderSimulation,
+    '3d':      render3D
   }
 
   return (
@@ -392,10 +419,48 @@ export default function SimulationVisualizePage() {
           </div>
         </div>
 
+        {/* ── KPI panel ── */}
+        {snapshot && (() => {
+          const m = snapshot.metrics
+          const boxesInProgress = pallets.reduce((s, p) => s + p.placed_count, 0)
+          return (
+            <div style={{
+              position: 'absolute', bottom: 20, right: 24,
+              border: '1px solid #e8e8e8',
+              padding: '14px 18px',
+              display: 'flex', flexDirection: 'column', gap: 12,
+              minWidth: 200,
+            }}>
+              <Metric label="Active pallets"    value={pallets.length > 0 ? pallets.length : null} />
+              <Metric label="Boxes in progress" value={boxesInProgress > 0 ? boxesInProgress : null} />
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Metric label="Pallets sent"      value={m.total_pallets_sent > 0 ? m.total_pallets_sent : null} />
+                <Metric label="Full pallets"      value={m.full_pallets > 0 ? m.full_pallets : null} />
+                <Metric label="Full pallet ratio" value={m.total_pallets_sent > 0 ? m.full_pallet_ratio : null} unit="%" />
+                <Metric label="Total boxes sent"  value={m.total_boxes_sent > 0 ? m.total_boxes_sent : null} />
+                <Metric label="Avg fill rate"     value={m.total_pallets_sent > 0 ? m.avg_fill_rate : null} unit="%" />
+                <Metric label="Throughput"        value={m.total_pallets_sent > 0 ? Math.round(snapshot.tick / m.total_pallets_sent) : null} unit=" ticks/pallet" />
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── Tab content ── */}
-        <div style={{ maxWidth: 'calc(100% - 240px)' }}>
-          {TAB_RENDER[activeTab]()}
-        </div>
+        {activeTab !== '3d' && (
+          <div style={{ maxWidth: 'calc(100% - 240px)' }}>
+            {TAB_RENDER[activeTab]()}
+          </div>
+        )}
+
+        {/* ── 3D view (absolute fill, leaves space for right panels) ── */}
+        {activeTab === '3d' && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 240, bottom: 0 }}>
+            {!simParams
+              ? <div style={{ ...T.label, padding: 24 }}>Loading...</div>
+              : <Warehouse3DView simId={id} params={simParams} snapshot={snapshot} />
+            }
+          </div>
+        )}
 
       </div>
     </div>

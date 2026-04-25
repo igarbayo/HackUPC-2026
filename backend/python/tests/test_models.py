@@ -140,17 +140,24 @@ def test_pallet_state_empty_boxes():
 # ── TickStateModel ─────────────────────────────────────────────────────────────
 
 def test_tick_state_structure():
-    aisle = AisleStateModel(shuttles=[])
+    from models import RobotStateModel
+    aisle = AisleStateModel(aisle_id=0, shuttles=[], pending_fifo=[], pending_sorted=[])
     pallet = PalletStateModel(slot=0, family="ZARA", placed_count=1, reserved_count=0, boxes=[])
-    t = TickStateModel(tick=42, aisle=aisle, pallets=[pallet])
+    t = TickStateModel(tick=42, aisles=[aisle], robot=RobotStateModel(pallets=[pallet]))
     assert t.tick == 42
-    assert isinstance(t.aisle, AisleStateModel)
-    assert len(t.pallets) == 1
+    assert len(t.aisles) == 1
+    assert isinstance(t.aisles[0], AisleStateModel)
+    assert len(t.robot.pallets) == 1
 
 
 def test_tick_state_no_pallets():
-    t = TickStateModel(tick=1, aisle=AisleStateModel(shuttles=[]), pallets=[])
-    assert t.pallets == []
+    from models import RobotStateModel
+    t = TickStateModel(
+        tick=1,
+        aisles=[AisleStateModel(aisle_id=0, shuttles=[], pending_fifo=[], pending_sorted=[])],
+        robot=RobotStateModel(pallets=[]),
+    )
+    assert t.robot.pallets == []
 
 
 # ── EventModel ───────────────────────────────���────────────────────────────���────

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { FF, T } from '@/lib/tokens'
 
 interface NavBarProps {
@@ -15,16 +16,16 @@ export default function NavBar({ liveCount }: NavBarProps) {
       zIndex: 300, fontFamily: FF,
     }}>
       {/* Center brand */}
-      <div style={{
+      <Link href="/" style={{
         ...T.brand,
         position: 'absolute',
         left: '50%',
         transform: 'translateX(-50%)',
-        pointerEvents: 'none',
         color: '#000',
+        textDecoration: 'none',
       }}>
         SILOS
-      </div>
+      </Link>
 
       {/* Right: live indicator */}
       <div style={{
@@ -33,7 +34,8 @@ export default function NavBar({ liveCount }: NavBarProps) {
         ...T.nav, color: '#aaa',
       }}>
         <span style={{
-          width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
+          width: 6, height: 6, borderRadius: '50%',
+          background: liveCount > 0 ? '#22c55e' : '#ef4444',
           display: 'inline-block', animation: 'pulse 2.4s infinite',
         }} />
         {liveCount} active

@@ -6,6 +6,13 @@ import { createContext, useContext, useRef, useState, useCallback } from 'react'
 
 interface Position { x: number; y: number; z: number; side: number }
 
+export interface BoxModel {
+  id: string
+  family: string
+  arrival_tick: number
+  position?: { x: number; y: number; z: number; side: number }
+}
+
 export interface ShuttleState {
   y_level: number
   position: Position
@@ -13,6 +20,7 @@ export interface ShuttleState {
   is_carrying: boolean
   carried_box_id: string
   carried_box_family: string
+  floor_boxes: BoxModel[]
 }
 
 export interface InstructionState {
@@ -39,10 +47,20 @@ export interface PalletState {
   reserved_count: number
 }
 
+export interface MetricsSnapshot {
+  total_pallets_sent: number
+  full_pallets: number
+  full_pallet_ratio: number
+  total_boxes_sent: number
+  avg_fill_rate: number
+  boxes_by_family: Record<string, number>
+}
+
 export interface TickSnapshot {
   tick: number
   aisles: AisleState[]
   robot: { pallets: PalletState[] }
+  metrics: MetricsSnapshot
 }
 
 export type StreamStatus = 'connecting' | 'streaming' | 'done' | 'error'

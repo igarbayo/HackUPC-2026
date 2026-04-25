@@ -58,8 +58,11 @@ class FakeShuttleSnap:
 
 
 class FakeAisleSnap:
-    def __init__(self, shuttles=None):
+    def __init__(self, aisle_id=0, shuttles=None, pending_fifo=None, pending_sorted=None):
+        self.aisle_id = aisle_id
         self.shuttles = shuttles or []
+        self.pending_fifo = pending_fifo or []
+        self.pending_sorted = pending_sorted or []
 
 
 class FakePalletSnap:
@@ -72,9 +75,9 @@ class FakePalletSnap:
 
 
 class FakeTickSnapshot:
-    def __init__(self, tick=1, aisle=None, pallets=None):
+    def __init__(self, tick=1, aisles=None, pallets=None):
         self.tick = tick
-        self.aisle = aisle or FakeAisleSnap()
+        self.aisles = aisles if aisles is not None else [FakeAisleSnap()]
         self.pallets = pallets if pallets is not None else []
 
 
@@ -139,7 +142,7 @@ def _make_pallets():
 def _make_snapshot(tick=42):
     return FakeTickSnapshot(
         tick=tick,
-        aisle=FakeAisleSnap(shuttles=_make_shuttles()),
+        aisles=[FakeAisleSnap(shuttles=_make_shuttles())],
         pallets=_make_pallets(),
     )
 

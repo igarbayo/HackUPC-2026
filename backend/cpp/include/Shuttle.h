@@ -34,5 +34,9 @@ private:
     Position           drop_{};
     bool               isInputMission_ = false;
 
+    static constexpr int MANIPULATION_TICKS = 10;
+
     void moveToward(Position target);
+
+    int manipulationTimer_ = 0;
 };
