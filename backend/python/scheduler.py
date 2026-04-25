@@ -36,6 +36,7 @@ def build_cpp_params(
     p.num_slots = num_slots
     p.num_y = num_y
     p.num_sides = num_sides
+    p.num_robots = 1
     p.max_ticks = max_ticks
     if boxes:
         p.boxes = boxes

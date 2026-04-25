@@ -32,6 +32,7 @@ PYBIND11_MODULE(scheduler_cpp, m) {
         .def_readwrite("num_slots",  &Params::num_slots)
         .def_readwrite("num_y",      &Params::num_y)
         .def_readwrite("num_sides",  &Params::num_sides)
+        .def_readwrite("num_robots", &Params::num_robots)
         .def_readwrite("max_ticks",  &Params::max_ticks);
 
     m.def("run_simulation", &run_simulation,
@@ -78,6 +79,7 @@ PYBIND11_MODULE(scheduler_cpp, m) {
         .def_readonly("pending_sorted", &AisleSnap::pending_sorted);
 
     py::class_<PalletSnap>(m, "PalletSnap")
+        .def_readonly("robot_id",       &PalletSnap::robot_id)
         .def_readonly("slot",           &PalletSnap::slot)
         .def_readonly("family",         &PalletSnap::family)
         .def_readonly("placed_count",   &PalletSnap::placed_count)

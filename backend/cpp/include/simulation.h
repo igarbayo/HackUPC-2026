@@ -12,6 +12,7 @@ struct Params {
     int  num_slots         = 20;
     int  num_y             = 2;          // height levels; one shuttle per level
     int  num_sides         = 1;          // 1=Left only, 2=Left+Right
+    int  num_robots        = 2;          // number of independent robot arms
     int  max_ticks         = 10000;
     Tick        input_phase_ticks = UINT64_MAX;       // belt stops after this tick; drain continues
     std::string heuristic_name   = "stock_proximity"; // robot scoring heuristic

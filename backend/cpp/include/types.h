@@ -69,7 +69,8 @@ struct AisleSnap {
 };
 
 struct PalletSnap {
-    int    slot          = 0;   // 0..3
+    int    robot_id      = 0;
+    int    slot          = 0;   // 0..MAX_ACTIVE_PALLETS-1 within the robot
     Family family;
     int    placed_count  = 0;
     int    reserved_count = 0;

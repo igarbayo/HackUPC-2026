@@ -14,7 +14,7 @@ std::vector<Event> run_simulation(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
-    std::vector<Robot> robots(1);
+    std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
@@ -46,7 +46,7 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
-    std::vector<Robot> robots(1);
+    std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
@@ -61,18 +61,21 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
         for (auto& as : container.snapshot()) snap.aisles.push_back(std::move(as));
 
-        const auto& pallets = robots[0].pallets();
-        for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
-            if (!pallets[slot]) continue;
-            const Pallet& pal = *pallets[slot];
-            PalletSnap ps;
-            ps.slot           = slot;
-            ps.family         = pal.family();
-            ps.placed_count   = pal.placedCount();
-            ps.reserved_count = pal.reservedCount();
-            for (const auto& box : pal.boxes())
-                ps.boxes.push_back({box.id(), box.family(), box.arrivalTick(), {}});
-            snap.pallets.push_back(std::move(ps));
+        for (int r = 0; r < (int)robots.size(); ++r) {
+            const auto& pallets = robots[r].pallets();
+            for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
+                if (!pallets[slot]) continue;
+                const Pallet& pal = *pallets[slot];
+                PalletSnap ps;
+                ps.robot_id       = r;
+                ps.slot           = slot;
+                ps.family         = pal.family();
+                ps.placed_count   = pal.placedCount();
+                ps.reserved_count = pal.reservedCount();
+                for (const auto& box : pal.boxes())
+                    ps.boxes.push_back({box.id(), box.family(), box.arrivalTick(), {}});
+                snap.pallets.push_back(std::move(ps));
+            }
         }
         result.snapshots.push_back(std::move(snap));
 
@@ -98,7 +101,7 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
-    std::vector<Robot> robots(1);
+    std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
@@ -118,18 +121,21 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
             snap.events.push_back(events[i]);
         event_cursor = events.size();
 
-        const auto& pallets = robots[0].pallets();
-        for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
-            if (!pallets[slot]) continue;
-            const Pallet& pal = *pallets[slot];
-            PalletSnap ps;
-            ps.slot           = slot;
-            ps.family         = pal.family();
-            ps.placed_count   = pal.placedCount();
-            ps.reserved_count = pal.reservedCount();
-            for (const auto& box : pal.boxes())
-                ps.boxes.push_back({box.id(), box.family(), box.arrivalTick(), {}});
-            snap.pallets.push_back(std::move(ps));
+        for (int r = 0; r < (int)robots.size(); ++r) {
+            const auto& pallets = robots[r].pallets();
+            for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
+                if (!pallets[slot]) continue;
+                const Pallet& pal = *pallets[slot];
+                PalletSnap ps;
+                ps.robot_id       = r;
+                ps.slot           = slot;
+                ps.family         = pal.family();
+                ps.placed_count   = pal.placedCount();
+                ps.reserved_count = pal.reservedCount();
+                for (const auto& box : pal.boxes())
+                    ps.boxes.push_back({box.id(), box.family(), box.arrivalTick(), {}});
+                snap.pallets.push_back(std::move(ps));
+            }
         }
         queue.push(std::move(snap));
 
