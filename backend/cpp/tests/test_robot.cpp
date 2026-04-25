@@ -142,7 +142,8 @@ void test_same_family_same_pallet() {
     assert(countA == 2 && "both A boxes must be on the same pallet");
 }
 
-// Full pipeline: box enters the aisle, robot ticks until it collects and places it.
+// Full pipeline: OPEN_THRESHOLD boxes enter the aisle; robot opens a pallet once
+// enough of the same family are stored and delivers them.
 void test_tick_integration_with_aisle() {
     // Small aisle: 5 storage slots, 1 Y level, 1 side, port at x=-1
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
@@ -154,10 +155,12 @@ void test_tick_integration_with_aisle() {
     Robot robot;
     robot.setEventLog(&log);
 
-    aisle.input(makeBox("42", "X"));
+    // Feed exactly OPEN_THRESHOLD boxes of family X so the robot opens a pallet
+    for (int i = 1; i <= Robot::OPEN_THRESHOLD; ++i)
+        aisle.input(makeBox("x" + std::to_string(i), "X"));
 
     bool received = false;
-    for (int t = 1; t <= 50 && !received; ++t) {
+    for (int t = 1; t <= 200 && !received; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
         robot.tick(aisle);
@@ -170,17 +173,303 @@ void test_tick_integration_with_aisle() {
         }
     }
 
-    assert(received && "robot should have placed box on pallet within 50 ticks");
+    assert(received && "robot should have placed box on pallet within 200 ticks");
 
-    // Verify event sequence: box_stored before box_on_pallet
+    // Verify event sequence: at least one box_stored precedes first box_on_pallet
     int storedIdx = -1, palletIdx = -1;
     for (int i = 0; i < static_cast<int>(log.size()); ++i) {
-        if (log[i].type == "box_stored"   && storedIdx == -1) storedIdx = i;
+        if (log[i].type == "box_stored"    && storedIdx == -1) storedIdx = i;
         if (log[i].type == "box_on_pallet" && palletIdx == -1) palletIdx = i;
     }
     assert(storedIdx  != -1 && "expected box_stored event");
     assert(palletIdx  != -1 && "expected box_on_pallet event");
     assert(storedIdx < palletIdx && "box_stored must precede box_on_pallet");
+}
+
+// When no family reaches OPEN_THRESHOLD the robot still opens pallets (threshold bypass).
+void test_threshold_bypass_when_aisle_low() {
+    Robot robot;
+    // Deliver fewer than OPEN_THRESHOLD boxes of each family directly
+    for (int i = 1; i < Robot::OPEN_THRESHOLD; ++i)
+        robot.onBoxDelivered(makeBox(std::to_string(i), "A"));
+
+    // Robot should have opened a pallet for A even though count < threshold
+    const auto& pallets = robot.pallets();
+    int countA = 0;
+    for (const auto& p : pallets)
+        if (p && p->family() == "A") countA += p->placedCount();
+    assert(countA == Robot::OPEN_THRESHOLD - 1 && "bypass: all low-count boxes must be placed");
+}
+
+// When the aisle drains to zero, all open pallets are dispatched immediately.
+void test_drain_dispatch_on_empty_aisle() {
+    std::vector<Event> log;
+
+    // Aisle with 1 shuttle; send exactly OPEN_THRESHOLD boxes then let it drain
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    Aisle aisle(10, 1, 1, port);
+    aisle.setEventLog(&log);
+
+    Robot robot;
+    robot.setEventLog(&log);
+
+    for (int i = 1; i <= Robot::OPEN_THRESHOLD; ++i)
+        aisle.input(makeBox(std::to_string(i), "A"));
+
+    // Run until robot has placed at least one box (pallet is open and partially filled)
+    bool palletOpen = false;
+    for (int t = 1; t <= 200 && !palletOpen; ++t) {
+        robot.setCurrentTick(t);
+        aisle.tick();
+        robot.tick(aisle);
+        for (const auto& p : robot.pallets())
+            if (p && p->family() == "A" && p->placedCount() > 0) { palletOpen = true; break; }
+    }
+    assert(palletOpen && "pallet should have at least one box before drain check");
+
+    // Keep ticking until the aisle is completely empty and robot dispatches
+    bool dispatched = false;
+    for (int t = 201; t <= 500 && !dispatched; ++t) {
+        robot.setCurrentTick(t);
+        aisle.tick();
+        robot.tick(aisle);
+
+        // All pallet slots should be empty once drain fires
+        bool anyOpen = false;
+        for (const auto& p : robot.pallets()) if (p) { anyOpen = true; break; }
+        if (!anyOpen) dispatched = true;
+    }
+    assert(dispatched && "all pallets should be dispatched once aisle is empty");
+
+    int drainDispatches = 0;
+    for (const auto& e : log)
+        if (e.type == "pallet_dispatched" && e.family == "A") ++drainDispatches;
+    assert(drainDispatches >= 1 && "at least one pallet_dispatched event expected");
+}
+
+// decide() must bulk-request all available boxes for an existing pallet in a single call.
+// Also verifies the request is capped at freeSlots when the pallet is nearly full.
+void test_bulk_request_pipelining() {
+    // Case 1: available (5) < freeSlots (CAPACITY-1) → request all 5 at once
+    {
+        Robot robot;
+        robot.onBoxDelivered(makeBox("a1", "A"));  // pallet open, 1 placed, CAPACITY-1 free
+
+        Aisle::Metadata meta;
+        meta.countByFamily["A"] = 5;  // 5 available, none in-flight
+
+        auto req = robot.decide(meta);
+        assert(req.count("A")    && "A must appear in request");
+        assert(req.at("A") == 5  && "all 5 available boxes must be requested in one call");
+    }
+
+    // Case 2: available (5) > freeSlots (1) → request capped at freeSlots
+    {
+        Robot robot;
+        for (int i = 1; i <= Pallet::CAPACITY - 1; ++i)
+            robot.onBoxDelivered(makeBox(std::to_string(i), "A"));  // 1 free slot left
+
+        Aisle::Metadata meta;
+        meta.countByFamily["A"] = 5;  // 5 available but pallet only has 1 slot
+
+        auto req = robot.decide(meta);
+        assert(req.count("A")    && "A must appear in request");
+        assert(req.at("A") == 1  && "request must be capped at freeSlots (1)");
+    }
+}
+
+// Family X has fewer boxes than OPEN_THRESHOLD but a better score (nearer port).
+// Family Y has more boxes than OPEN_THRESHOLD but a worse score (farther away).
+// With only one free pallet slot, the robot must open a pallet for Y (passes threshold)
+// and must NOT open one for X (fails threshold, score is irrelevant).
+void test_threshold_blocks_high_score_low_count_family() {
+    Robot robot;
+
+    // Occupy 3 of 4 slots so exactly one is free for a new family
+    robot.onBoxDelivered(makeBox("a1", "A"));
+    robot.onBoxDelivered(makeBox("b1", "B"));
+    robot.onBoxDelivered(makeBox("c1", "C"));
+
+    // Craft metadata:
+    //   X: 1 box, avgDist=0  → score = 1/(0+1) = 1.0  (would win if threshold skipped)
+    //   Y: OPEN_THRESHOLD+1 boxes, avgDist=10 → score ≈ 0.6  (lower score but passes threshold)
+    Aisle::Metadata meta;
+    meta.countByFamily["A"] = 1;
+    meta.countByFamily["B"] = 1;
+    meta.countByFamily["C"] = 1;
+    meta.countByFamily["X"] = 1;
+    meta.countByFamily["Y"] = Robot::OPEN_THRESHOLD + 1;
+    meta.avgDistanceByFamily["X"] = 0.0f;
+    meta.avgDistanceByFamily["Y"] = 10.0f;
+
+    auto req = robot.decide(meta);
+
+    assert(!req.count("X") && "X has fewer boxes than OPEN_THRESHOLD — must not get the free slot");
+    assert( req.count("Y") && "Y meets OPEN_THRESHOLD and must get the free slot");
+}
+
+// avgFillRate is correct across a mix of one full and one half-full pallet.
+void test_stats_mixed_fill_rate() {
+    Robot robot;
+    robot.setCurrentTick(1);
+
+    // Full pallet of A (auto-dispatched)
+    for (int i = 1; i <= Pallet::CAPACITY; ++i)
+        robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
+
+    // Half-full pallet of B, then manually dispatch it
+    int half = Pallet::CAPACITY / 2;
+    for (int i = 1; i <= half; ++i)
+        robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
+
+    int bSlot = -1;
+    for (int i = 0; i < Robot::MAX_ACTIVE_PALLETS; ++i)
+        if (robot.pallets()[i] && robot.pallets()[i]->family() == "B") { bSlot = i; break; }
+    assert(bSlot != -1 && "B pallet must be open");
+    robot.dispatchPallet(bSlot);
+
+    assert(robot.totalPalletsSent()  == 2);
+    assert(robot.filledPalletsSent() == 1);
+    assert(robot.totalBoxesSent()    == Pallet::CAPACITY + half);
+
+    float expected = static_cast<float>(Pallet::CAPACITY + half) / (2.0f * Pallet::CAPACITY);
+    float actual   = robot.avgFillRate();
+    assert(actual > expected - 0.001f && actual < expected + 0.001f);
+}
+
+// After dispatching a full pallet, all counters reflect exactly one filled pallet.
+void test_stats_full_pallet() {
+    Robot robot;
+    robot.setCurrentTick(1);
+    for (int i = 1; i <= Pallet::CAPACITY; ++i)
+        robot.onBoxDelivered(makeBox(std::to_string(i), "A"));
+
+    assert(robot.totalPalletsSent()      == 1);
+    assert(robot.filledPalletsSent()     == 1);
+    assert(robot.totalBoxesSent()        == Pallet::CAPACITY);
+    assert(robot.boxesSentForFamily("A") == Pallet::CAPACITY);
+    assert(robot.boxesSentForFamily("Z") == 0);  // unknown family → 0
+    assert(robot.avgFillRate()           == 1.0f);
+}
+
+// Force-evicting a partial pallet decrements filledPallets and yields avgFillRate < 1.
+void test_stats_partial_pallet_fill_rate() {
+    Robot robot;
+    robot.setCurrentTick(1);
+
+    // Fill all 4 slots with 3 boxes each (equal, so whichever is evicted is partial)
+    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
+    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
+    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("c" + std::to_string(i), "C"));
+    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("d" + std::to_string(i), "D"));
+
+    // Deliver a 5th family — triggers force eviction of one 3-box pallet
+    robot.onBoxDelivered(makeBox("e1", "E"));
+
+    assert(robot.totalPalletsSent()  == 1);
+    assert(robot.filledPalletsSent() == 0);                  // 3 < CAPACITY
+    assert(robot.totalBoxesSent()    == 3);
+    assert(robot.avgFillRate()       >  0.0f);
+    assert(robot.avgFillRate()       <  1.0f);
+}
+
+// After dispatching pallets for two families, per-family and aggregate stats are consistent.
+void test_stats_boxes_by_family() {
+    Robot robot;
+    robot.setCurrentTick(1);
+
+    for (int i = 1; i <= Pallet::CAPACITY; ++i)
+        robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
+    for (int i = 1; i <= Pallet::CAPACITY; ++i)
+        robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
+
+    assert(robot.totalPalletsSent()      == 2);
+    assert(robot.filledPalletsSent()     == 2);
+    assert(robot.totalBoxesSent()        == 2 * Pallet::CAPACITY);
+    assert(robot.boxesSentForFamily("A") == Pallet::CAPACITY);
+    assert(robot.boxesSentForFamily("B") == Pallet::CAPACITY);
+
+    const auto& byFamily = robot.boxesSentByFamily();
+    assert(byFamily.count("A") && byFamily.at("A") == Pallet::CAPACITY);
+    assert(byFamily.count("B") && byFamily.at("B") == Pallet::CAPACITY);
+
+    assert(robot.avgFillRate() == 1.0f);
+}
+
+// findLeastCompletablePalletSlot scores slots as placed + available_in_aisle (lastMeta_).
+// Without aisle data A (placed=1) would be cheapest and evicted.
+// After robot.tick() populates lastMeta_ with 5 A-boxes, A's score rises to 6 and
+// B (placed=2, inAisle=0 → score=2) becomes the eviction target instead.
+void test_eviction_uses_aisle_metadata() {
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    Aisle aisle(20, 1, 1, port);
+    Robot robot;
+
+    // Fill all 4 pallet slots: A=1 box, B=2, C=3, D=3
+    robot.onBoxDelivered(makeBox("a1", "A"));
+    robot.onBoxDelivered(makeBox("b1", "B"));
+    robot.onBoxDelivered(makeBox("b2", "B"));
+    robot.onBoxDelivered(makeBox("c1", "C"));
+    robot.onBoxDelivered(makeBox("c2", "C"));
+    robot.onBoxDelivered(makeBox("c3", "C"));
+    robot.onBoxDelivered(makeBox("d1", "D"));
+    robot.onBoxDelivered(makeBox("d2", "D"));
+    robot.onBoxDelivered(makeBox("d3", "D"));
+
+    // Store 5 A-boxes in the aisle so lastMeta_ will carry inAisle["A"]=5
+    for (int i = 1; i <= 5; ++i)
+        aisle.input(makeBox("aa" + std::to_string(i), "A"));
+    for (int t = 0; t < 200; ++t)
+        aisle.tick();
+    assert(aisle.metadata().countByFamily.count("A") &&
+           "setup: at least one A box must be stored before robot.tick()");
+
+    // One tick populates lastMeta_ — A's combined score becomes placed(1)+inAisle(5)=6
+    robot.setCurrentTick(1);
+    robot.tick(aisle);
+
+    // Trigger forced eviction: all 4 slots occupied, E needs a new slot
+    robot.onBoxDelivered(makeBox("e1", "E"));
+
+    const auto& pallets = robot.pallets();
+    bool hasE = false, hasB = false, hasA = false;
+    for (const auto& p : pallets) {
+        if (!p) continue;
+        if (p->family() == "E") hasE = true;
+        if (p->family() == "B") hasB = true;
+        if (p->family() == "A") hasA = true;
+    }
+    assert(hasE  && "E must occupy the freed slot");
+    assert(!hasB && "B (placed=2, inAisle=0 → score=2) must be evicted");
+    assert(hasA  && "A (placed=1, inAisle=5 → score=6) must survive despite lowest placed count");
+}
+
+// With one free slot and two threshold-passing families, the one with the higher
+// score (more boxes relative to distance) wins even if it has fewer raw boxes.
+// X: 9 boxes, avgDist=10 → score = 9/11 ≈ 0.82
+// Y: 6 boxes, avgDist=1  → score = 6/2  = 3.0  ← wins
+void test_score_prefers_nearby_family() {
+    Robot robot;
+
+    // Occupy 3 of 4 slots so exactly one is free
+    robot.onBoxDelivered(makeBox("a1", "A"));
+    robot.onBoxDelivered(makeBox("b1", "B"));
+    robot.onBoxDelivered(makeBox("c1", "C"));
+
+    // Both X and Y have at least OPEN_THRESHOLD boxes; Y is nearby, X is far.
+    Aisle::Metadata meta;
+    meta.countByFamily["A"] = 1;
+    meta.countByFamily["B"] = 1;
+    meta.countByFamily["C"] = 1;
+    meta.countByFamily["X"] = Robot::OPEN_THRESHOLD + 3;  // 9 boxes, far
+    meta.countByFamily["Y"] = Robot::OPEN_THRESHOLD;      // 6 boxes, near
+    meta.avgDistanceByFamily["X"] = 10.0f;
+    meta.avgDistanceByFamily["Y"] =  1.0f;
+
+    auto req = robot.decide(meta);
+
+    assert( req.count("Y") && "Y has better score (nearby) — must get the only free slot");
+    assert(!req.count("X") && "X has worse score (far away) — must not get the free slot");
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -193,6 +482,16 @@ int main() {
     RUN(test_force_dispatch_least_full);
     RUN(test_same_family_same_pallet);
     RUN(test_tick_integration_with_aisle);
+    RUN(test_threshold_bypass_when_aisle_low);
+    RUN(test_drain_dispatch_on_empty_aisle);
+    RUN(test_bulk_request_pipelining);
+    RUN(test_eviction_uses_aisle_metadata);
+    RUN(test_threshold_blocks_high_score_low_count_family);
+    RUN(test_stats_mixed_fill_rate);
+    RUN(test_stats_full_pallet);
+    RUN(test_stats_partial_pallet_fill_rate);
+    RUN(test_stats_boxes_by_family);
+    RUN(test_score_prefers_nearby_family);
 
     std::cout << "\n" << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;

@@ -102,6 +102,14 @@ void Aisle::notifyBoxPlaced(const Box& b, Position where) {
         freeZ1_[key].erase(where.x);
     }
     // z2 placement doesn't change freeZ1_ (z1 is still occupied at that x)
+
+    auto it = oldestArrivalByFamily_.find(b.family());
+    if (it == oldestArrivalByFamily_.end() || b.arrivalTick() < it->second)
+        oldestArrivalByFamily_[b.family()] = b.arrivalTick();
+
+    // Release slot claim (set by assignNextTo when the mission was issued)
+    claimedInputSlots_[key].erase(where.x);
+
     if (eventLog_)
         eventLog_->push_back({"box_stored", currentTick_, b.id(), -1, b.family()});
 }
@@ -112,6 +120,28 @@ void Aisle::notifyBoxTaken(const Box& b, Position where) {
         freeZ1_[key].insert(where.x);
     }
     // z2 removal: z1 is still empty, so x was already in freeZ1_ (no change there)
+
+    // Recompute oldest arrival for this family (removed box may have been the oldest)
+    oldestArrivalByFamily_.erase(b.family());
+    for (int s = 1; s <= numSides_; ++s) {
+        for (int y = 1; y <= numY_; ++y) {
+            for (int x = 0; x < length_; ++x) {
+                const Slot& sl = slots_[s-1][y-1][x];
+                auto check = [&](const Box* bx) {
+                    if (!bx || bx->family() != b.family()) return;
+                    auto it = oldestArrivalByFamily_.find(b.family());
+                    if (it == oldestArrivalByFamily_.end() || bx->arrivalTick() < it->second)
+                        oldestArrivalByFamily_[b.family()] = bx->arrivalTick();
+                };
+                check(sl.peek());
+                check(sl.peekZ2());
+            }
+        }
+    }
+
+    // Release any stale input claim on this slot (shouldn't normally be set for outputs)
+    claimedInputSlots_[key].erase(where.x);
+
     if (eventLog_)
         eventLog_->push_back({"box_retrieved", currentTick_, b.id(), -1, b.family()});
 }
@@ -192,10 +222,24 @@ std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position s
 std::optional<Position> Aisle::findFreeSlot(int side, int y, bool preferNear) const {
     if (side < 1 || side > numSides_ || y < 1 || y > numY_) return std::nullopt;
     LevelKey key{side, y};
-    auto it = freeZ1_.find(key);
-    if (it == freeZ1_.end() || it->second.empty()) return std::nullopt;
-    int x = preferNear ? *it->second.begin() : *it->second.rbegin();
-    return Position{x, y, 1, side};
+    auto fit = freeZ1_.find(key);
+    if (fit == freeZ1_.end() || fit->second.empty()) return std::nullopt;
+
+    auto cit = claimedInputSlots_.find(key);
+    const bool hasClaimed = cit != claimedInputSlots_.end();
+
+    if (preferNear) {
+        for (int x : fit->second) {
+            if (!hasClaimed || !cit->second.count(x))
+                return Position{x, y, 1, side};
+        }
+    } else {
+        for (auto xit = fit->second.rbegin(); xit != fit->second.rend(); ++xit) {
+            if (!hasClaimed || !cit->second.count(*xit))
+                return Position{*xit, y, 1, side};
+        }
+    }
+    return std::nullopt;
 }
 
 void Aisle::assignNextTo(Shuttle& s) {
@@ -243,6 +287,7 @@ void Aisle::assignNextTo(Shuttle& s) {
             }
             if (!bestPos) continue;
 
+            claimedInputSlots_[{bestPos->side, bestPos->y}].insert(bestPos->x);
 
             Position pickupPos;
             pickupPos.x = port_.x; pickupPos.y = shuttleY;
@@ -264,6 +309,31 @@ void Aisle::assignNextTo(Shuttle& s) {
             return;
         }
     }
+}
+
+std::optional<Position> Aisle::findNearestWithFamily(const Family& f, int y) const {
+    if (y < 1 || y > numY_) return std::nullopt;
+    int bestDist = INT_MAX;
+    std::optional<Position> best;
+    for (int s = 1; s <= numSides_; ++s) {
+        LevelKey key{s, y};
+        auto cit = claimedInputSlots_.find(key);
+        for (int x = 0; x < length_; ++x) {
+            if (cit != claimedInputSlots_.end() && cit->second.count(x)) continue;
+            const Slot& slot = slots_[s-1][y-1][x];
+            auto check = [&](const Box* b, int z) {
+                if (!b || b->family() != f) return;
+                int dist = std::abs(x - port_.x);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = Position{x, y, z, s};
+                }
+            };
+            check(slot.peek(), 1);
+            check(slot.peekZ2(), 2);
+        }
+    }
+    return best;
 }
 
 void Aisle::assignInstructions() {
@@ -331,7 +401,11 @@ void Aisle::assignInstructions() {
 void Aisle::updateMeta() {
     meta_.countByFamily.clear();
     meta_.nearestByFamily.clear();
+    meta_.avgDistanceByFamily.clear();
     meta_.freeSlots = 0;
+
+    std::unordered_map<Family, int> distSum;
+    std::unordered_map<Family, int> distCount;
 
     for (int s = 1; s <= numSides_; ++s) {
         for (int y = 1; y <= numY_; ++y) {
@@ -341,23 +415,33 @@ void Aisle::updateMeta() {
                 if (const Box* b = slot.peek()) {
                     const Family& f = b->family();
                     ++meta_.countByFamily[f];
+                    int dist = std::abs(x - port_.x);
+                    distSum[f]   += dist;
+                    distCount[f] += 1;
                     auto nearIt = meta_.nearestByFamily.find(f);
                     Position p{x, y, 1, s};
                     if (nearIt == meta_.nearestByFamily.end()) {
                         meta_.nearestByFamily[f] = p;
                     } else {
-                        int curDist = std::abs(nearIt->second.x - port_.x);
-                        int newDist = std::abs(x - port_.x);
-                        if (newDist < curDist) nearIt->second = p;
+                        if (dist < std::abs(nearIt->second.x - port_.x))
+                            nearIt->second = p;
                     }
                 }
                 if (const Box* b = slot.peekZ2()) {
-                    ++meta_.countByFamily[b->family()];
+                    const Family& f = b->family();
+                    ++meta_.countByFamily[f];
+                    distSum[f]   += std::abs(x - port_.x);
+                    distCount[f] += 1;
                 }
                 if (slot.isEmpty()) ++meta_.freeSlots;
             }
         }
     }
+
+    for (const auto& [f, sum] : distSum)
+        meta_.avgDistanceByFamily[f] = static_cast<float>(sum) / static_cast<float>(distCount[f]);
+
+    meta_.oldestArrivalByFamily = oldestArrivalByFamily_;
 
     meta_.pendingInputs  = 0;
     meta_.pendingOutputs = 0;

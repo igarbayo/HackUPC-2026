@@ -31,6 +31,9 @@ add_executable(test_aisle_heuristic ${CORE_SOURCES} tests/test_aisle_heuristic.c
 # ── aisle / box-selection tests ───────────────────────────────────────────────
 add_executable(test_aisle ${CORE_SOURCES} tests/test_aisle.cpp)
 
+# ── metadata update tests (countByFamily, avgDistanceByFamily) ────────────────
+add_executable(test_metadata_update ${CORE_SOURCES} tests/test_metadata_update.cpp)
+
 
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>

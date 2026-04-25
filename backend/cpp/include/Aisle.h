@@ -15,8 +15,10 @@ class Aisle {
 public:
     struct Metadata {
         std::unordered_map<Family, int>      countByFamily;
-        std::unordered_map<Family, int>      reservedByFamily;
-        std::unordered_map<Family, Position> nearestByFamily;
+        std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
+        std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
+        std::unordered_map<Family, Tick>     oldestArrivalByFamily; // earliest arrivalTick stored per family
+        std::unordered_map<Family, float>    avgDistanceByFamily;   // mean |slot.x - port.x| per family
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;
@@ -71,6 +73,9 @@ public:
     // preferNear=false → largest x  (cold family)
     std::optional<Position> findFreeSlot(int side, int y, bool preferNear) const;
 
+    // Find nearest stored box of family f at Y level y, skipping claimed slots.
+    std::optional<Position> findNearestWithFamily(const Family& f, int y) const;
+
 private:
     int                      length_;
     int                      numY_;
@@ -93,6 +98,9 @@ private:
     std::unordered_map<Family, std::queue<Box>> readyOutputs_;
     std::queue<Box>          pendingInputBoxes_;
     std::unordered_map<Family, int> outputReservedByFamily_;
+    std::unordered_map<Family, Tick> oldestArrivalByFamily_;
+    // slots claimed by an in-flight input mission, keyed by {side, y} → set of x
+    std::map<LevelKey, std::set<int>> claimedInputSlots_;
     std::vector<Event>*             eventLog_ = nullptr;
 
     void assignInstructions();
