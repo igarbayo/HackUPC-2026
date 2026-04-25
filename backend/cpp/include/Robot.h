@@ -6,6 +6,7 @@
 #include <array>
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 class Robot {
 public:
@@ -19,14 +20,16 @@ public:
 
     const std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS>& pallets() const;
 
-    // Called when a box is delivered from aisle to robot
-    // Contains the logic: open pallet / place in existing / force dispatch
     void    onBoxDelivered(Box b);
-    // Close and remove a pallet (full or forced)
     Pallet  dispatchPallet(int slotIndex);
+
+    void    setEventLog(std::vector<Event>* log);
+    void    setCurrentTick(Tick t);
 
 private:
     std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS> pallets_{};
+    std::vector<Event>* eventLog_    = nullptr;
+    Tick                currentTick_ = 0;
 
     int findPalletSlot(const Family& f) const;  // -1 if not found
     int findEmptyPalletSlot() const;             // -1 if all occupied
