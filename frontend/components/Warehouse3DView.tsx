@@ -333,7 +333,7 @@ class SiloScene {
     //   si  = position.side - 1    (1→0 Left, 2→1 Right)
     //   di  = position.x           (slot index, already 0-based)
 
-    for (const sh of snapshot.aisle.shuttles) {
+    for (const sh of (snapshot.aisles[0]?.shuttles ?? [])) {
       const li = sh.y_level - 1  // convert 1-based y to 0-based index
 
       const entry = this.shuttleData[li]

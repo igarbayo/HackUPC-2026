@@ -66,20 +66,44 @@ def _to_box_model(b, position=None) -> BoxModel:
 
 
 def _snapshot_to_tick_state(snap, metrics: MetricsModel | None = None) -> TickStateModel:
-    shuttles = []
-    for s in snap.aisle.shuttles:
-        floor_boxes = [_to_box_model(b, b.position) for b in s.floor_boxes]
-        shuttles.append(
-            ShuttleStateModel(
-                y_level=s.y_level,
-                position=_to_position(s.position),
-                phase=s.phase,
-                is_carrying=s.is_carrying,
-                carried_box_id=s.carried_box_id,
-                carried_box_family=s.carried_box_family,
-                floor_boxes=floor_boxes,
+    aisles = []
+    for a in snap.aisles:
+        shuttles = []
+        for s in a.shuttles:
+            floor_boxes = [_to_box_model(b, b.position) for b in s.floor_boxes]
+            shuttles.append(
+                ShuttleStateModel(
+                    y_level=s.y_level,
+                    position=_to_position(s.position),
+                    phase=s.phase,
+                    is_carrying=s.is_carrying,
+                    carried_box_id=s.carried_box_id,
+                    carried_box_family=s.carried_box_family,
+                    floor_boxes=floor_boxes,
+                )
             )
-        )
+        pending_fifo = [
+            InstructionModel(
+                kind=i.kind, family=i.family, box_id=i.box_id,
+                issued_at=i.issued_at, priority=i.priority, seq=i.seq,
+                target=_to_position(i.target),
+            )
+            for i in a.pending_fifo
+        ]
+        pending_sorted = [
+            InstructionModel(
+                kind=i.kind, family=i.family, box_id=i.box_id,
+                issued_at=i.issued_at, priority=i.priority, seq=i.seq,
+                target=_to_position(i.target),
+            )
+            for i in a.pending_sorted
+        ]
+        aisles.append(AisleStateModel(
+            aisle_id=a.aisle_id,
+            shuttles=shuttles,
+            pending_fifo=pending_fifo,
+            pending_sorted=pending_sorted,
+        ))
     pallets = []
     for p in snap.pallets:
         boxes = [_to_box_model(b) for b in p.boxes]

@@ -256,7 +256,7 @@ def test_ws_multi_tick_all_delivered(client):
     import scheduler as _sched
 
     sim_id = "multi-tick-sim"
-    raw_snaps = [FakeTickSnapshot(tick=t, aisle=FakeAisleSnap(shuttles=[]), pallets=[]) for t in [10, 20, 30]]
+    raw_snaps = [FakeTickSnapshot(tick=t, aisles=[FakeAisleSnap(shuttles=[])], pallets=[]) for t in [10, 20, 30]]
     _store.simulations[sim_id] = SimulationRecord(
         sim_id=sim_id,
         status="done",
@@ -284,7 +284,7 @@ def test_ws_multi_tick_each_validates_as_tick_state(client):
 
     sim_id = "multi-tick-validate"
     raw_snaps = [
-        FakeTickSnapshot(tick=t, aisle=FakeAisleSnap(shuttles=[]), pallets=[])
+        FakeTickSnapshot(tick=t, aisles=[FakeAisleSnap(shuttles=[])], pallets=[])
         for t in [1, 2, 3]
     ]
     _store.simulations[sim_id] = SimulationRecord(

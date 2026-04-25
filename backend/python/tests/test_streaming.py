@@ -197,7 +197,7 @@ def test_ws_streams_partial_before_done(client):
     from datetime import datetime, timezone
 
     sim_id = "partial-stream"
-    raw_snaps = [FakeTickSnapshot(tick=t, aisle=FakeAisleSnap(shuttles=[]), pallets=[]) for t in [5, 10]]
+    raw_snaps = [FakeTickSnapshot(tick=t, aisles=[FakeAisleSnap(shuttles=[])], pallets=[]) for t in [5, 10]]
     _store.simulations[sim_id] = SimulationRecord(
         sim_id=sim_id,
         status="running",
@@ -246,7 +246,7 @@ def test_ws_waits_when_no_snapshots_yet(client):
 
     def add_snap_and_finish():
         time.sleep(0.05)
-        raw = FakeTickSnapshot(tick=7, aisle=FakeAisleSnap(shuttles=[]), pallets=[])
+        raw = FakeTickSnapshot(tick=7, aisles=[FakeAisleSnap(shuttles=[])], pallets=[])
         _store.snapshots[sim_id].append(_sched._snapshot_to_tick_state(raw))
         time.sleep(0.02)
         _store.done[sim_id] = True
