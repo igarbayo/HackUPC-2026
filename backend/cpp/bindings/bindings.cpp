@@ -37,12 +37,21 @@ PYBIND11_MODULE(scheduler_cpp, m) {
 
     // --- box generation ---
 
+    py::class_<DemandPeriod>(m, "DemandPeriod")
+        .def(py::init<>())
+        .def_readwrite("from_tick",        &DemandPeriod::from_tick)
+        .def_readwrite("to_tick",          &DemandPeriod::to_tick)
+        .def_readwrite("rate_multiplier",  &DemandPeriod::rate_multiplier);
+
     py::class_<BoxGeneratorParams>(m, "BoxGeneratorParams")
         .def(py::init<>())
-        .def_readwrite("num_boxes",        &BoxGeneratorParams::num_boxes)
-        .def_readwrite("num_destinations", &BoxGeneratorParams::num_destinations)
-        .def_readwrite("weights",          &BoxGeneratorParams::weights)
-        .def_readwrite("seed",             &BoxGeneratorParams::seed);
+        .def_readwrite("num_boxes",                 &BoxGeneratorParams::num_boxes)
+        .def_readwrite("num_destinations",          &BoxGeneratorParams::num_destinations)
+        .def_readwrite("weights",                   &BoxGeneratorParams::weights)
+        .def_readwrite("seed",                      &BoxGeneratorParams::seed)
+        .def_readwrite("mean_inter_arrival_ticks",  &BoxGeneratorParams::mean_inter_arrival_ticks)
+        .def_readwrite("std_inter_arrival_ticks",   &BoxGeneratorParams::std_inter_arrival_ticks)
+        .def_readwrite("demand_profile",            &BoxGeneratorParams::demand_profile);
 
     m.def("generate_boxes",
         [](const BoxGeneratorParams& p) {

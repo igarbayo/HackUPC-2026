@@ -85,8 +85,8 @@ Position        Aisle::port()     const { return port_; }
 void Aisle::tick() {
     ++currentTick_;
     if (belt_) {
-        while (auto box = belt_->pop())
-            input(std::move(*box));
+        while (belt_->peek() && belt_->peek()->arrivalTick() <= currentTick_)
+            input(std::move(*belt_->pop()));
     }
     ordenarInstrucciones();
     for (auto& shuttle : shuttles_) shuttle.tick(*this);
