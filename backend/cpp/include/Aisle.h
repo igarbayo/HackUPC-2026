@@ -49,6 +49,8 @@ public:
 
     void                setEventLog(std::vector<Event>* log);
 
+    void                assignNextTo(Shuttle& s);          // pull: shuttle requests next instruction
+
     // Used by Shuttle to update free-slot index and metadata when placing/taking from storage slots
     void                notifyBoxPlaced(const Box& b, Position where);
     void                notifyBoxTaken (const Box& b, Position where);

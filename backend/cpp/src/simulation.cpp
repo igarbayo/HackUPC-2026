@@ -7,9 +7,11 @@
 std::vector<Event> run_simulation(const Params& p) {
     std::vector<Event> log;
 
+    // Inicializamos la cinta
     InputBelt belt;
     for (const auto& b : p.boxes) belt.push(b);
 
+    // Inicializamos el aisle y el scheduler
     Aisle              aisle(p.num_slots, p.num_shuttles, Position{-1, 0});
     std::vector<Robot> robots(1);
     Scheduler          scheduler(aisle, robots, belt, &log);

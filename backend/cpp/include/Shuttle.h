@@ -11,6 +11,7 @@ public:
 
     explicit Shuttle(Position startPos);
 
+    // Getters
     Position    position()    const;
     bool        isFree()      const;   // true when Phase::Idle
     bool        isOnMission() const;

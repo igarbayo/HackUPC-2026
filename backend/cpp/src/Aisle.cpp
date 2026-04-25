@@ -79,10 +79,8 @@ Position        Aisle::port()     const { return port_; }
 void Aisle::tick() {
     ++currentTick_;
     ordenarInstrucciones();
-    assignInstructions();
-    for (auto& shuttle : shuttles_) {
-        shuttle.tick(*this);
-    }
+    for (auto& shuttle : shuttles_) shuttle.tick(*this);
+    assignInstructions();  // bootstrap: catch idle shuttles with new instructions this tick
     updateMeta();
 }
 
@@ -151,38 +149,34 @@ std::optional<Position> Aisle::findFreeSlot(bool preferNear) const {
     return Position{x, 0};
 }
 
-void Aisle::assignInstructions() {
-    for (auto& shuttle : shuttles_) {
-        if (!shuttle.isFree() || instructionQueue_.empty()) continue;
+void Aisle::assignNextTo(Shuttle& s) {
+    if (!s.isFree() || instructionQueue_.empty()) return;
 
-        for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
-            if (it->kind == Instruction::Kind::Input) {
-                if (pendingInputBoxes_.empty()) continue;
-                // Hot family (has active output reservation) → store near port for fast retrieval
-                const Family& fam = pendingInputBoxes_.front().family();
-                bool isHot = outputReservedByFamily_.count(fam) &&
-                             outputReservedByFamily_.at(fam) > 0;
-                auto freePos = findFreeSlot(isHot);
-                if (!freePos) continue;
-                shuttle.assignInputMission(port_, *freePos);
-                instructionQueue_.erase(it);
-                break;
-            } else { // Output
-                if (!it->requestedFam) continue;
-                auto nearestPos = findNearestWithFamily(*it->requestedFam, port_);
-                if (!nearestPos) {
-                    // Family not available yet; skip this instruction for now
-                    continue;
-                }
-                // Skip if slot was already taken by another shuttle
-                if (slotAt(*nearestPos).isEmpty()) continue;
-
-                shuttle.assignOutputMission(*nearestPos, port_);
-                instructionQueue_.erase(it);
-                break;
-            }
+    for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
+        if (it->kind == Instruction::Kind::Input) {
+            if (pendingInputBoxes_.empty()) continue;
+            const Family& fam = pendingInputBoxes_.front().family();
+            bool isHot = outputReservedByFamily_.count(fam) &&
+                         outputReservedByFamily_.at(fam) > 0;
+            auto freePos = findFreeSlot(isHot);
+            if (!freePos) continue;
+            s.assignInputMission(port_, *freePos);
+            instructionQueue_.erase(it);
+            return;
+        } else {
+            if (!it->requestedFam) continue;
+            auto nearestPos = findNearestWithFamily(*it->requestedFam, port_);
+            if (!nearestPos) continue;
+            if (slotAt(*nearestPos).isEmpty()) continue;
+            s.assignOutputMission(*nearestPos, port_);
+            instructionQueue_.erase(it);
+            return;
         }
     }
+}
+
+void Aisle::assignInstructions() {
+    for (auto& shuttle : shuttles_) assignNextTo(shuttle);
 }
 
 void Aisle::updateMeta() {

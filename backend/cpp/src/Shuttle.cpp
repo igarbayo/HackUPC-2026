@@ -86,6 +86,7 @@ void Shuttle::tick(Aisle& aisle) {
             carried_.reset();
         }
         phase_ = Phase::Idle;
+        aisle.assignNextTo(*this);
         break;
     }
 }
