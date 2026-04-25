@@ -28,6 +28,8 @@ struct Event {
     BoxId       box_id       = {};
     int         pallet_id    = -1;  // pallet slot index; -1 if not applicable
     Family      family       = {};
+    int         robot_id     = -1;  // robot index; -1 if not applicable
+    int         box_count    = -1;  // boxes on pallet at dispatch; -1 if not applicable
 };
 
 // --- Per-tick state snapshots ---

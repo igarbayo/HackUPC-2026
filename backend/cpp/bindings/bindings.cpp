@@ -21,7 +21,9 @@ PYBIND11_MODULE(scheduler_cpp, m) {
         .def_readonly("logical_time", &Event::logical_time)
         .def_readonly("box_id",       &Event::box_id)
         .def_readonly("pallet_id",    &Event::pallet_id)
-        .def_readonly("family",       &Event::family);
+        .def_readonly("family",       &Event::family)
+        .def_readonly("robot_id",     &Event::robot_id)
+        .def_readonly("box_count",    &Event::box_count);
 
     py::class_<Params>(m, "Params")
         .def(py::init<>())
