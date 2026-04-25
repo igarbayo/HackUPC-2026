@@ -63,6 +63,9 @@ public:
     // Returns nullopt if none found at that Y level.
     std::optional<Position> findNearestWithFamily(const Family& f, int yLevel) const;
 
+    // Find the best accessible box of the given family for a specific shuttle.
+    std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
+
     // Find best free slot at (side, y) for input placement.
     // preferNear=true  → smallest x (hot family)
     // preferNear=false → largest x  (cold family)

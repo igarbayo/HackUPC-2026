@@ -27,6 +27,9 @@ add_executable(test_robot ${CORE_SOURCES} tests/test_robot.cpp)
 # ── aisle heuristic tests (hackupc.pdf desk-test scenario) ───────────────────
 add_executable(test_aisle_heuristic ${CORE_SOURCES} tests/test_aisle_heuristic.cpp)
 
+# ── aisle output tests  ───────────────────
+add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
+
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
     $<$<CXX_COMPILER_ID:MSVC>:/W4>
