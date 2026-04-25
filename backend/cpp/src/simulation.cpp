@@ -17,7 +17,6 @@ std::vector<Event> run_simulation(const Params& p) {
 
     for (const auto& pb : p.initial_boxes)
         container.placeAt(pb.aisle_idx, pb.box, pb.pos);
-    std::vector<Robot> robots(1);
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
@@ -55,7 +54,6 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
     for (const auto& pb : p.initial_boxes)
         container.placeAt(pb.aisle_idx, pb.box, pb.pos);
-    std::vector<Robot> robots(1);
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
@@ -116,7 +114,6 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
     for (const auto& pb : p.initial_boxes)
         container.placeAt(pb.aisle_idx, pb.box, pb.pos);
-    std::vector<Robot> robots(1);
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
