@@ -219,27 +219,55 @@ std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position s
     return best;
 }
 
-std::optional<Position> Aisle::findFreeSlot(int side, int y, bool preferNear) const {
-    if (side < 1 || side > numSides_ || y < 1 || y > numY_) return std::nullopt;
-    LevelKey key{side, y};
-    auto fit = freeZ1_.find(key);
-    if (fit == freeZ1_.end() || fit->second.empty()) return std::nullopt;
+std::optional<Position> Aisle::findBestInputSlot(const Box& box, int y) const {
+    if (y < 1 || y > numY_) return std::nullopt;
 
-    auto cit = claimedInputSlots_.find(key);
-    const bool hasClaimed = cit != claimedInputSlots_.end();
+    constexpr int W1 = 1, W2 = 1, W3 = 1, W4 = 10;
+    constexpr int LOAD_CONSTANT = 10;
 
-    if (preferNear) {
-        for (int x : fit->second) {
-            if (!hasClaimed || !cit->second.count(x))
-                return Position{x, y, 1, side};
-        }
-    } else {
-        for (auto xit = fit->second.rbegin(); xit != fit->second.rend(); ++xit) {
-            if (!hasClaimed || !cit->second.count(*xit))
-                return Position{*xit, y, 1, side};
+    const Family& fam = box.family();
+    double completitud = meta_.countByFamily.count(fam)
+                       ? meta_.countByFamily.at(fam) / 12.0 : 0.0;
+    int xIdeal = static_cast<int>((1.0 - completitud) * (length_ - 1));
+
+    int nextPickX = -1;
+    for (const auto& instr : instructionQueue_) {
+        if (instr.kind == Instruction::Kind::Output && instr.requestedFam) {
+            auto pos = findNearestWithFamily(*instr.requestedFam, y);
+            if (pos) { nextPickX = pos->x; break; }
         }
     }
-    return std::nullopt;
+
+    int shuttleLoad = shuttles_[y - 1].isFree() ? 0 : 1;
+
+    int bestCost = INT_MAX;
+    std::optional<Position> best;
+
+    for (int side = 1; side <= numSides_; ++side) {
+        LevelKey key{side, y};
+        auto it = freeZ1_.find(key);
+        if (it == freeZ1_.end()) continue;
+        for (int x : it->second) {
+            const Slot& slot = slots_[side - 1][y - 1][x];
+            const Box* z2 = slot.peekZ2();
+
+            int penZ;
+            if      (!z2)                  penZ = +1000;
+            else if (z2->family() == fam)  penZ = -1000;
+            else                           penZ =  +500;
+
+            int cost = W1 * std::abs(x - xIdeal)
+                     + W2 * penZ
+                     + W3 * (nextPickX >= 0 ? std::abs(x - nextPickX) : 0)
+                     + W4 * shuttleLoad * LOAD_CONSTANT;
+
+            if (cost < bestCost) {
+                bestCost = cost;
+                best = Position{x, y, 1, side};
+            }
+        }
+    }
+    return best;
 }
 
 void Aisle::assignNextTo(Shuttle& s) {
@@ -250,49 +278,15 @@ void Aisle::assignNextTo(Shuttle& s) {
         if (it->kind == Instruction::Kind::Input) {
 
             if (pendingInputBoxes_.empty()) continue;
-            const Family& fam = pendingInputBoxes_.front().family();
+            auto freePos = findBestInputSlot(pendingInputBoxes_.front(), shuttleY);
+            if (!freePos) continue;
 
-            // X_ideal: near port; X_pick: x of nearest existing box of same family
-            const int x_ideal = port_.x;
-            int x_pick = port_.x;
-            auto nearestFam = findNearestWithFamily(fam, shuttleY);
-            if (nearestFam) x_pick = nearestFam->x;
-
-            // Weights from hackupc2.pdf
-            constexpr int W1 = 10, W2 = 1, W3 = 10;
-
-            std::optional<Position> bestPos;
-            int bestCost = INT_MAX;
-
-            for (int side = 1; side <= numSides_; ++side) {
-                LevelKey key{side, shuttleY};
-                auto fit = freeZ1_.find(key);
-                if (fit == freeZ1_.end()) continue;
-                for (int xs : fit->second) {
-                    if (xs == port_.x) continue;
-                    const Slot& slot = slots_[side-1][shuttleY-1][xs];
-                    int penZ;
-                    const Box* z2 = slot.peekZ2();
-                    if      (!z2)                      penZ =  1000;
-                    else if (z2->family() == fam)      penZ = -1000;
-                    else                               penZ =   500;
-                    int cost = W1 * std::abs(xs - x_ideal)
-                             + W2 * penZ
-                             + W3 * std::abs(xs - x_pick);
-                    if (cost < bestCost) {
-                        bestCost = cost;
-                        bestPos  = Position{xs, shuttleY, 1, side};
-                    }
-                }
-            }
-            if (!bestPos) continue;
-
-            claimedInputSlots_[{bestPos->side, bestPos->y}].insert(bestPos->x);
+            claimedInputSlots_[{freePos->side, freePos->y}].insert(freePos->x);
 
             Position pickupPos;
             pickupPos.x = port_.x; pickupPos.y = shuttleY;
             pickupPos.z = 1;       pickupPos.side = 1;
-            s.assignInputMission(pickupPos, *bestPos);
+            s.assignInputMission(pickupPos, *freePos);
             instructionQueue_.erase(it);
             return;
 
@@ -337,6 +331,9 @@ std::optional<Position> Aisle::findNearestWithFamily(const Family& f, int y) con
 }
 
 void Aisle::assignInstructions() {
+    // Input
+    for (auto& shuttle : shuttles_) assignNextTo(shuttle);
+
     // Output pass: for each output instruction (sorted by priority), find the
     // globally best (shuttle, box) pair and assign it.
     for (auto instrIt = instructionQueue_.begin(); instrIt != instructionQueue_.end(); ) {
@@ -378,12 +375,7 @@ void Aisle::assignInstructions() {
     // Input pass: assign to any free shuttle.
     for (auto& shuttle : shuttles_) {
         if (!shuttle.isFree() || pendingInputBoxes_.empty()) continue;
-        const Family& fam = pendingInputBoxes_.front().family();
-        bool isHot = outputReservedByFamily_.count(fam) &&
-                     outputReservedByFamily_.at(fam) > 0;
-        std::optional<Position> freePos;
-        for (int side = 1; side <= numSides_ && !freePos; ++side)
-            freePos = findFreeSlot(side, shuttle.yLevel(), isHot);
+        auto freePos = findBestInputSlot(pendingInputBoxes_.front(), shuttle.yLevel());
         if (!freePos) continue;
         for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
             if (it->kind == Instruction::Kind::Input) {

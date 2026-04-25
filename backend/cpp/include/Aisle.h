@@ -68,10 +68,8 @@ public:
     // Cost = dist(shuttle→box) + dist(box→port). Ties broken by largest x (prefer freeing far slots).
     std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
 
-    // Find best free slot at (side, y) for input placement.
-    // preferNear=true  → smallest x (hot family)
-    // preferNear=false → largest x  (cold family)
-    std::optional<Position> findFreeSlot(int side, int y, bool preferNear) const;
+    // Find best free slot at level y for input placement using numeric cost function.
+    std::optional<Position> findBestInputSlot(const Box& box, int y) const;
 
     // Find nearest stored box of family f at Y level y, skipping claimed slots.
     std::optional<Position> findNearestWithFamily(const Family& f, int y) const;

@@ -34,6 +34,8 @@ add_executable(test_aisle ${CORE_SOURCES} tests/test_aisle.cpp)
 # ── metadata update tests (countByFamily, avgDistanceByFamily) ────────────────
 add_executable(test_metadata_update ${CORE_SOURCES} tests/test_metadata_update.cpp)
 
+# ── aisle output tests  ───────────────────
+add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
 
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
