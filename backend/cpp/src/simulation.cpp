@@ -93,12 +93,19 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
     Scheduler          scheduler(aisle, robots, belt, &events);
 
+    std::size_t event_cursor = 0;
+
     for (int t = 0; t < p.max_ticks; ++t) {
         scheduler.activate();
 
         TickSnapshot snap;
         snap.tick  = scheduler.currentTick();
         snap.aisle = aisle.snapshot();
+
+        // Carry events emitted during this tick
+        for (std::size_t i = event_cursor; i < events.size(); ++i)
+            snap.events.push_back(events[i]);
+        event_cursor = events.size();
 
         const auto& pallets = robots[0].pallets();
         for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
@@ -124,7 +131,12 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
         if (done) break;
     }
 
+    // Final sentinel snapshot carries the "done" event
     events.push_back({"done", scheduler.currentTick(), {}, -1, {}});
+    TickSnapshot done_snap;
+    done_snap.tick = scheduler.currentTick();
+    done_snap.events.push_back(events.back());
+    queue.push(std::move(done_snap));
     queue.markDone();
     return events;
 }

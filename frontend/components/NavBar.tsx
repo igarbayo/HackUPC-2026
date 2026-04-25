@@ -36,7 +36,7 @@ export default function NavBar({ liveCount }: NavBarProps) {
           width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
           display: 'inline-block', animation: 'pulse 2.4s infinite',
         }} />
-        {liveCount} activos
+        {liveCount} active
       </div>
     </div>
   )

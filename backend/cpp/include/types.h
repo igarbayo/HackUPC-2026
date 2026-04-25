@@ -67,4 +67,5 @@ struct TickSnapshot {
     Tick     tick = 0;
     AisleSnap aisle;
     std::vector<PalletSnap> pallets;
+    std::vector<Event> events;  // events emitted during this tick; last snap carries "done"
 };

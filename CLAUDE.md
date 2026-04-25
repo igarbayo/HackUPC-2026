@@ -64,7 +64,12 @@ Requires C++17: GCC 8+, Clang 7+, or MSVC 2017+.
 ```bash
 cd backend/python
 pip install -r requirements.txt
-uvicorn main:app --reload
+```
+
+Run (the `.so` must be on `PYTHONPATH`):
+```bash
+cd backend/python
+PYTHONPATH=/home/ignacio/Escritorio/SILOS/HackUPC-2026/backend/cpp/build uvicorn main:app --reload
 ```
 
 The pybind11 extension must be compiled first (see `backend/cpp/bindings/`). Only `scheduler.py` imports the `.so`; everything else in Python is pure Python.
@@ -95,7 +100,7 @@ The pybind11 extension must be compiled first (see `backend/cpp/bindings/`). Onl
 - No flattering openers or filler closings.
 - Keep solutions simple and direct.
 - User instructions always override this file.
-- All generated code and documentation must be in English.
+- All generated code and documentation must be in English. Also every part of the code, frontend or backend must be in English.
 
 ## Documentation
 

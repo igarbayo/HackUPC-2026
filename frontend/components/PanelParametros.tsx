@@ -27,7 +27,7 @@ interface Params {
   weights: Weight[]
 }
 
-type Preset = 'basica' | 'avanzada' | 'personalizado'
+type Preset = 'basic' | 'advanced' | 'custom'
 
 // ── Presets ───────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ const DEMAND_DEFAULT: DemandRow[] = [
   { from_tick: 3960, to_tick: 99999, rate_multiplier: 1.0 },
 ]
 
-const PRESET_BASICA: Params = {
+const PRESET_BASIC: Params = {
   num_boxes: 100,
   num_destinations: 5,
   seed: 42,
@@ -53,7 +53,7 @@ const PRESET_BASICA: Params = {
   ],
 }
 
-const PRESET_AVANZADA: Params = {
+const PRESET_ADVANCED: Params = {
   num_boxes: 500,
   num_destinations: 23,
   seed: 42,
@@ -127,23 +127,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ── Main component ────────────────────────────────────────
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 export default function PanelParametros() {
-  const [preset, setPreset]   = useState<Preset>('basica')
-  const [params, setParams]   = useState<Params>({ ...PRESET_BASICA, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASICA.weights] })
-  const [applied, setApplied] = useState(false)
+  const [preset, setPreset]   = useState<Preset>('basic')
+  const [params, setParams]   = useState<Params>({ ...PRESET_BASIC, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASIC.weights] })
+  const [status, setStatus]   = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
 
   function applyPreset(p: Preset) {
-    if (p === 'basica')   setParams({ ...PRESET_BASICA,   demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASICA.weights] })
-    if (p === 'avanzada') setParams({ ...PRESET_AVANZADA, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_AVANZADA.weights] })
+    if (p === 'basic')    setParams({ ...PRESET_BASIC,    demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASIC.weights] })
+    if (p === 'advanced') setParams({ ...PRESET_ADVANCED, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_ADVANCED.weights] })
     setPreset(p)
   }
 
   function patch<K extends keyof Params>(key: K, val: Params[K]) {
     setParams(p => ({ ...p, [key]: val }))
-    setPreset('personalizado')
+    setPreset('custom')
   }
 
-  // Demand profile helpers
   function patchDemand(i: number, field: keyof DemandRow, val: number) {
     const next = params.demand_profile.map((r, idx) => idx === i ? { ...r, [field]: val } : r)
     patch('demand_profile', next)
@@ -155,7 +156,6 @@ export default function PanelParametros() {
     patch('demand_profile', params.demand_profile.filter((_, idx) => idx !== i))
   }
 
-  // Weight helpers
   function patchWeight(i: number, field: keyof Weight, val: string | number) {
     const next = params.weights.map((w, idx) => idx === i ? { ...w, [field]: val } : w)
     patch('weights', next)
@@ -167,36 +167,48 @@ export default function PanelParametros() {
     patch('weights', params.weights.filter((_, idx) => idx !== i))
   }
 
-  function handleApply() {
-    setApplied(true)
-    setTimeout(() => setApplied(false), 2000)
-    // TODO: POST to backend API
-    console.log('params:', JSON.stringify({
-      ...params,
-      weights: Object.fromEntries(params.weights.map(w => [w.name, w.value])),
-    }, null, 2))
+  async function handleApply() {
+    setStatus('loading')
+    try {
+      const res = await fetch(`${API_URL}/simulations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generator: {
+            ...params,
+            weights: Object.fromEntries(params.weights.map(w => [w.name, w.value])),
+          },
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setStatus('ok')
+      setTimeout(() => setStatus('idle'), 2000)
+    } catch {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 2000)
+    }
   }
 
   const PRESETS: { id: Preset; label: string; sub: string }[] = [
-    { id: 'basica',         label: 'Básica',       sub: '100 cajas · 5 destinos' },
-    { id: 'avanzada',       label: 'Avanzada',     sub: '500 cajas · 23 destinos' },
-    { id: 'personalizado',  label: 'Personalizado', sub: 'Configuración manual'   },
+    { id: 'basic',    label: 'Basic',    sub: '100 boxes · 5 destinations'  },
+    { id: 'advanced', label: 'Advanced', sub: '500 boxes · 23 destinations' },
+    { id: 'custom',   label: 'Custom',   sub: 'Manual configuration'        },
   ]
 
   return (
     <div style={{ padding: '28px 24px', fontFamily: FF }}>
-      <div style={{ ...T.section, marginBottom: 24, color: '#000' }}>Parámetros</div>
+      <div style={{ ...T.section, marginBottom: 24, color: '#000' }}>Parameters</div>
 
       {/* ── Preset selector ── */}
       <div style={{ ...T.label, marginBottom: 12 }}>Presets</div>
       {PRESETS.map(({ id, label, sub }) => (
         <div
           key={id}
-          onClick={() => id !== 'personalizado' && applyPreset(id)}
+          onClick={() => id !== 'custom' && applyPreset(id)}
           style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '9px 0', borderBottom: '1px solid #f4f4f4',
-            cursor: id !== 'personalizado' ? 'pointer' : 'default',
+            cursor: id !== 'custom' ? 'pointer' : 'default',
           }}
         >
           <div style={{
@@ -218,37 +230,36 @@ export default function PanelParametros() {
 
       <Hr my={24} />
 
-      {/* ── Parámetros generales ── */}
-      <div style={{ ...T.label, color: '#000', marginBottom: 16 }}>Parámetros generales</div>
+      {/* ── General parameters ── */}
+      <div style={{ ...T.label, color: '#000', marginBottom: 16 }}>General parameters</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px 32px', marginBottom: 4 }}>
-        <Field label="Número de cajas">
+        <Field label="Number of boxes">
           <NumInput value={params.num_boxes} min={1} onChange={v => patch('num_boxes', v)} />
         </Field>
-        <Field label="Destinos">
+        <Field label="Destinations">
           <NumInput value={params.num_destinations} min={1} onChange={v => patch('num_destinations', v)} />
         </Field>
-        <Field label="Semilla">
+        <Field label="Seed">
           <NumInput value={params.seed} min={0} onChange={v => patch('seed', v)} />
         </Field>
-        <Field label="Media de llegada (ticks)">
+        <Field label="Mean arrival (ticks)">
           <NumInput value={params.mean_inter_arrival_ticks} step={0.1} min={0.1} onChange={v => patch('mean_inter_arrival_ticks', v)} />
         </Field>
-        <Field label="Desviación de llegada (ticks)">
+        <Field label="Arrival std dev (ticks)">
           <NumInput value={params.std_inter_arrival_ticks} step={0.001} min={0} onChange={v => patch('std_inter_arrival_ticks', v)} />
         </Field>
       </div>
 
       <Hr my={24} />
 
-      {/* ── Perfil de demanda ── */}
-      <div style={{ ...T.label, color: '#000', marginBottom: 16 }}>Perfil de demanda</div>
+      {/* ── Demand profile ── */}
+      <div style={{ ...T.label, color: '#000', marginBottom: 16 }}>Demand profile</div>
 
-      {/* Header */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 24px',
         gap: 12, marginBottom: 8,
       }}>
-        {['Desde (tick)', 'Hasta (tick)', 'Multiplicador', ''].map(h => (
+        {['From (tick)', 'To (tick)', 'Multiplier', ''].map(h => (
           <div key={h} style={{ ...T.label }}>{h}</div>
         ))}
       </div>
@@ -277,18 +288,17 @@ export default function PanelParametros() {
           fontFamily: FF, color: '#888', cursor: 'pointer',
         }}
       >
-        + Añadir tramo
+        + Add segment
       </button>
 
       <Hr my={24} />
 
-      {/* ── Pesos de destino ── */}
+      {/* ── Destination weights ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-        <div style={{ ...T.label, color: '#000' }}>Pesos de destino</div>
-        <span style={{ ...T.micro }}>{params.weights.length} destinos</span>
+        <div style={{ ...T.label, color: '#000' }}>Destination weights</div>
+        <span style={{ ...T.micro }}>{params.weights.length} destinations</span>
       </div>
 
-      {/* Column headers */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -300,18 +310,17 @@ export default function PanelParametros() {
             gap: 10, marginBottom: 10, alignItems: 'end',
           }}>
             <div>
-              {i === 0 && <div style={{ ...T.label, marginBottom: 5 }}>Destino</div>}
-              {/* show label only on first of each column — skip for simplicity, always show */}
+              {i === 0 && <div style={{ ...T.label, marginBottom: 5 }}>Destination</div>}
               <input
                 type="text"
                 value={w.name}
                 onChange={e => patchWeight(i, 'name', e.target.value)}
-                placeholder="destino_id"
+                placeholder="destination_id"
                 style={{ ...inputBase }}
               />
             </div>
             <div>
-              {i === 0 && <div style={{ ...T.label, marginBottom: 5 }}>Peso</div>}
+              {i === 0 && <div style={{ ...T.label, marginBottom: 5 }}>Weight</div>}
               <NumInput value={w.value} step={0.1} min={0} onChange={v => patchWeight(i, 'value', v)} />
             </div>
             <span
@@ -331,7 +340,7 @@ export default function PanelParametros() {
           fontFamily: FF, color: '#888', cursor: 'pointer',
         }}
       >
-        + Añadir destino
+        + Add destination
       </button>
 
       <Hr my={24} />
@@ -341,13 +350,16 @@ export default function PanelParametros() {
         onClick={handleApply}
         style={{
           width: '100%', padding: '10px 0',
-          background: applied ? '#22c55e' : '#000', color: '#fff',
+          background: status === 'ok' ? '#22c55e' : status === 'error' ? '#ef4444' : '#000',
+          color: '#fff',
           border: 'none', fontSize: 9, letterSpacing: '0.18em',
           textTransform: 'uppercase', fontFamily: FF,
-          cursor: 'pointer', transition: 'background 0.3s',
+          cursor: status === 'loading' ? 'not-allowed' : 'pointer',
+          transition: 'background 0.3s',
         }}
+        disabled={status === 'loading'}
       >
-        {applied ? '✓ Aplicado' : 'Aplicar configuración'}
+        {status === 'loading' ? 'Launching...' : status === 'ok' ? '✓ Simulation launched' : status === 'error' ? '✗ Error' : 'Apply configuration'}
       </button>
 
       <Hr my={20} />
