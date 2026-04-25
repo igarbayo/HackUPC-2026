@@ -10,29 +10,11 @@
 
 #include "Aisle.h"
 #include "Robot.h"
-#include "Box.h"
 #include "Pallet.h"
-#include <cassert>
-#include <iostream>
-#include <string>
+#include "helpers.h"
 #include <vector>
 
-// ── test harness ──────────────────────────────────────────────────────────────
-
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
-
-static Box makeBox(BoxId id, const std::string& family) {
-    return Box(id, family, 0);
-}
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 static Position portAt(int x) {
     Position p; p.x = x; p.y = 1; p.z = 1; p.side = 1;
@@ -161,12 +143,7 @@ void test_stored_boxes_retrieved_nearest_first() {
 
     assert(delivered.size() == 3 && "expected 3 boxes delivered");
 
-    // Each successive box must be no closer to port than the previous
-    // (i.e. cost is non-decreasing: nearest delivered first).
-    // port.x = -1; dist(box) = box_x - (-1) = box_x + 1.
-    // We don't know exact placement positions, so we check via the event log
-    // that box_retrieved events arrive in non-decreasing distance order.
-    // As a simpler proxy: confirm all delivered boxes belong to family A.
+    // Confirm all delivered boxes belong to family A.
     for (const auto& b : delivered)
         assert(b.family() == "A" && "every delivered box must be family A");
 }
@@ -263,7 +240,7 @@ void test_full_pipeline_event_order_on_dispatch() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Integration tests (input heuristic -> robot decide -> output selection)\n";
+    SUITE("Integration: input heuristic → robot decide → output selection");
     RUN(test_decide_picks_dominant_family);
     RUN(test_decide_score_selects_better_family);
     RUN(test_output_delivers_nearest_first);

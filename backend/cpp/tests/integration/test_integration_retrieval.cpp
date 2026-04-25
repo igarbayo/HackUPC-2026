@@ -12,34 +12,18 @@
 // Assertions: correct slot placement, correct families out, correct pallet contents.
 
 #include "Aisle.h"
-#include "Box.h"
 #include "Pallet.h"
-#include <cassert>
-#include <iostream>
+#include "helpers.h"
 #include <optional>
 #include <stdexcept>
-#include <string>
 
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
-
-static Box makeBox(const BoxId& id, const Family& fam) { return Box(id, fam, 0); }
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 static Position makePort() {
     Position p;
     p.x = 0; p.y = 1; p.z = 1; p.side = 1;
     return p;
 }
-
-// ── initial state ─────────────────────────────────────────────────────────────
 
 static void setupState(Aisle& aisle) {
     // x=0: block port slot so shuttle never uses it for new boxes
@@ -81,8 +65,6 @@ static void setupState(Aisle& aisle) {
         aisle.slotAt({4,1,1,1}).placeZ2(b1);
     }
 }
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 
 static Box waitForOutput(Aisle& aisle, const Family& f, int max_ticks = 150) {
     for (int t = 0; t < max_ticks; ++t) {
@@ -209,7 +191,7 @@ void test_full_sequence() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Integration: retrieval sequence B, A, A\n";
+    SUITE("Integration: retrieval sequence (B, A, A)");
     RUN(test_insertion_placement);
     RUN(test_retrieval_B);
     RUN(test_retrieval_A_A);

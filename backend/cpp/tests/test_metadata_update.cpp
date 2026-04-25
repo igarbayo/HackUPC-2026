@@ -1,28 +1,8 @@
 #include "Aisle.h"
-#include "Box.h"
-#include <cassert>
+#include "helpers.h"
 #include <cmath>
-#include <iostream>
-#include <string>
-
-// ── test harness ──────────────────────────────────────────────────────────────
-
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-
-static Box makeBox(BoxId id, const std::string& family, Tick arrival = 0) {
-    return Box(id, family, arrival);
-}
 
 static Position pos(int x) {
     Position p; p.x = x; p.y = 1; p.z = 1; p.side = 1;
@@ -236,9 +216,9 @@ void test_avg_dist_entry_removed_when_empty() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Metadata update tests (countByFamily, avgDistanceByFamily)\n";
+    SUITE("Aisle: metadata update (countByFamily, avgDistanceByFamily)");
 
-    std::cout << "\n-- countByFamily / placement --\n";
+    SECTION("countByFamily / placement");
     RUN(test_count_empty_aisle);
     RUN(test_count_one_box_z1);
     RUN(test_count_two_boxes_same_family);
@@ -246,12 +226,12 @@ int main() {
     RUN(test_count_accessible_z2_counted);
     RUN(test_count_blocked_z2_not_counted);
 
-    std::cout << "\n-- countByFamily / retrieval --\n";
+    SECTION("countByFamily / retrieval");
     RUN(test_count_decreases_on_retrieval);
     RUN(test_count_entry_removed_when_last_box_gone);
     RUN(test_count_z1_then_accessible_z2_retrieval);
 
-    std::cout << "\n-- avgDistanceByFamily / placement --\n";
+    SECTION("avgDistanceByFamily / placement");
     RUN(test_avg_dist_empty_aisle);
     RUN(test_avg_dist_single_box);
     RUN(test_avg_dist_two_boxes_same_family);
@@ -259,7 +239,7 @@ int main() {
     RUN(test_avg_dist_z1_and_accessible_z2_combined);
     RUN(test_avg_dist_independent_per_family);
 
-    std::cout << "\n-- avgDistanceByFamily / retrieval --\n";
+    SECTION("avgDistanceByFamily / retrieval");
     RUN(test_avg_dist_updates_after_retrieval);
     RUN(test_avg_dist_entry_removed_when_empty);
 

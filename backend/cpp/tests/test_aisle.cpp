@@ -1,27 +1,7 @@
 #include "Aisle.h"
-#include "Box.h"
-#include <cassert>
-#include <iostream>
-#include <string>
-
-// ── test harness ─────────────────────────────────────────────────────────────
-
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
+#include "helpers.h"
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-
-static Box makeBox(BoxId id, const std::string& family) {
-    return Box(id, family, 0);
-}
 
 // Build a small aisle, feed N boxes of given family, tick until all stored.
 // Cold placement (not hot) → boxes go to the far end: x = length-1, length-2, …
@@ -38,6 +18,16 @@ static Aisle makeAisleWithBoxes(int length, const std::string& family, int count
 static Position shuttleAt(int x) {
     Position p; p.x = x; p.y = 1; p.z = 1; p.side = 1;
     return p;
+}
+
+static Position slotPos(int x) {
+    Position p; p.x = x; p.y = 1; p.z = 1; p.side = 1;
+    return p;
+}
+
+static Aisle emptyAisle(int length) {
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    return Aisle(length, 1, 1, port);
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -118,18 +108,6 @@ void test_findBestBox_single_box() {
     assert(r2.has_value() && r2->x == 4);
 }
 
-// Helper: build a position for direct slot access
-static Position slotPos(int x) {
-    Position p; p.x = x; p.y = 1; p.z = 1; p.side = 1;
-    return p;
-}
-
-// Helper: empty aisle (no ticking needed)
-static Aisle emptyAisle(int length) {
-    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    return Aisle(length, 1, 1, port);
-}
-
 // z2 is blocked when z1 holds a different family.
 // The function must skip that slot and find the accessible box elsewhere.
 //
@@ -171,13 +149,6 @@ void test_findBestBox_accessible_z2_returned() {
 //   x=2: z1=F (alone)         — picking it frees nothing extra
 //   x=3: z1=F, z2=G (full)   — picking z1 makes G accessible
 //
-// Shuttle at x=4:
-//   cost(x=2) = |4-2| + 3 = 5
-//   cost(x=3) = |4-3| + 4 = 5   ← tie
-//   Full-cell tiebreak → x=3 wins
-//   (without this heuristic, larger-x rule would also pick x=3, so test uses
-//    the reversed layout: full cell at x=2, lone at x=3)
-//
 // Reversed: full at x=2, lone at x=3. Shuttle at x=4:
 //   same costs, but without full-cell heuristic x=3 (larger) would win.
 //   With full-cell heuristic x=2 (full cell) wins over x=3 (lone).
@@ -201,7 +172,7 @@ void test_findBestBox_prefers_full_cell() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Aisle / findBestBoxForShuttle tests\n";
+    SUITE("Aisle: findBestBoxForShuttle");
     RUN(test_findBestBox_prefers_lower_cost);
     RUN(test_findBestBox_tiebreak_farther_x);
     RUN(test_findBestBox_no_family_returns_nullopt);

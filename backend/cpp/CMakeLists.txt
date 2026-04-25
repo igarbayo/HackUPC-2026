@@ -4,7 +4,7 @@ project(SILOS CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(include)
+include_directories(include tests)
 
 set(CORE_SOURCES
     src/Box.cpp
@@ -21,26 +21,15 @@ set(CORE_SOURCES
 # ── standalone demo executable ───────────────────────────────────────────────
 add_executable(silos ${CORE_SOURCES} src/main.cpp)
 
-# ── robot unit/integration tests ─────────────────────────────────────────────
-add_executable(test_robot ${CORE_SOURCES} tests/test_robot.cpp)
-
-
-# ── aisle heuristic tests (hackupc.pdf desk-test scenario) ───────────────────
+# ── unit tests ────────────────────────────────────────────────────────────────
+add_executable(test_aisle          ${CORE_SOURCES} tests/test_aisle.cpp)
 add_executable(test_aisle_heuristic ${CORE_SOURCES} tests/test_aisle_heuristic.cpp)
-
-# ── aisle / box-selection tests ───────────────────────────────────────────────
-add_executable(test_aisle ${CORE_SOURCES} tests/test_aisle.cpp)
-
-# ── metadata update tests (countByFamily, avgDistanceByFamily) ────────────────
 add_executable(test_metadata_update ${CORE_SOURCES} tests/test_metadata_update.cpp)
+add_executable(test_robot          ${CORE_SOURCES} tests/test_robot.cpp)
 
-# ── aisle output tests  ───────────────────
-add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
-
-# ── integration: retrieval sequence B, A, A ──────────────────────────────────
+# ── integration tests ─────────────────────────────────────────────────────────
+add_executable(test_integration           ${CORE_SOURCES} tests/integration/test_integration.cpp)
 add_executable(test_integration_retrieval ${CORE_SOURCES} tests/integration/test_integration_retrieval.cpp)
-# ── end-to-end integration tests (input heuristic → robot decide → output) ───
-add_executable(test_integration ${CORE_SOURCES} tests/test_integration.cpp)
 
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>

@@ -1,26 +1,6 @@
 #include "Robot.h"
 #include "Aisle.h"
-#include "Box.h"
-#include <cassert>
-#include <iostream>
-#include <string>
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
-
-static Box makeBox(BoxId id, const std::string& family) {
-    return Box(id, family, 0);
-}
+#include "helpers.h"
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -441,7 +421,7 @@ void test_exhausted_families_dispatched_on_tick() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Robot tests\n";
+    SUITE("Robot: pallet management and dispatch");
     RUN(test_basic_placement);
     RUN(test_pallet_auto_dispatch_on_full);
     RUN(test_multi_family_pallets);
