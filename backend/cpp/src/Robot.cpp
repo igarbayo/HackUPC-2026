@@ -73,8 +73,29 @@ void Robot::tick(Aisle& aisle) {
     // 1. Collect ready outputs
     for (auto& palletOpt : pallets_) {
         if (!palletOpt) continue;
-        while (auto boxOpt = aisle.collectReadyOutput(palletOpt->family())) {
+        Family fam = palletOpt->family();
+        while (auto boxOpt = aisle.collectReadyOutput(fam)) {
             onBoxDelivered(*boxOpt);
+        }
+    }
+
+    // 1b. Dispatch pallets whose family is exhausted (nothing left in aisle or in-flight).
+    //     Without this, a pallet can block a slot forever if the aisle filled up with
+    //     other families and all boxes of this family were already collected.
+    {
+        const auto metaPost = aisle.metadata();
+        for (int i = 0; i < MAX_ACTIVE_PALLETS; ++i) {
+            if (!pallets_[i]) continue;
+            Family f = pallets_[i]->family();
+            auto cit = metaPost.countByFamily.find(f);
+            int inAisle   = (cit != metaPost.countByFamily.end()) ? cit->second : 0;
+            int inFlight  = getInFlight(metaPost, f);
+            if (inAisle == 0 && inFlight == 0) {
+                if (pallets_[i]->placedCount() > 0)
+                    dispatchPallet(i);
+                else
+                    pallets_[i].reset();
+            }
         }
     }
 
@@ -170,8 +191,8 @@ Pallet Robot::dispatchPallet(int slotIndex) {
     if (eventLog_)
         eventLog_->push_back({"pallet_dispatched", currentTick_, {}, slotIndex, pallets_[slotIndex]->family()});
 
-    int            boxes = pallets_[slotIndex]->placedCount();
-    const Family&  fam   = pallets_[slotIndex]->family();
+    int    boxes = pallets_[slotIndex]->placedCount();
+    Family fam   = pallets_[slotIndex]->family();
     ++totalPallets_;
     totalBoxes_          += boxes;
     boxesByFamily_[fam]  += boxes;
@@ -207,8 +228,8 @@ int Robot::findLeastCompletablePalletSlot() const {
     int best = -1, bestScore = INT_MAX;
     for (int i = 0; i < MAX_ACTIVE_PALLETS; ++i) {
         if (!pallets_[i]) continue;
-        const Family& f = pallets_[i]->family();
-        int placed  = pallets_[i]->placedCount();
+        Family f    = pallets_[i]->family();
+        int    placed  = pallets_[i]->placedCount();
         int inAisle = 0;
         auto it = lastMeta_.countByFamily.find(f);
         if (it != lastMeta_.countByFamily.end()) inAisle = it->second;
