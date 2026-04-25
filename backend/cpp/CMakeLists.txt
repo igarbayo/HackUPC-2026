@@ -39,6 +39,8 @@ add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
 
 # ── integration: retrieval sequence B, A, A ──────────────────────────────────
 add_executable(test_integration_retrieval ${CORE_SOURCES} tests/integration/test_integration_retrieval.cpp)
+# ── end-to-end integration tests (input heuristic → robot decide → output) ───
+add_executable(test_integration ${CORE_SOURCES} tests/test_integration.cpp)
 
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
