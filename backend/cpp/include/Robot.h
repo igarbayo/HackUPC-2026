@@ -23,13 +23,18 @@ public:
     void    onBoxDelivered(Box b);
     Pallet  dispatchPallet(int slotIndex);
 
+    int     dispatchedPallets() const;
+    int     dispatchedBoxes()   const;
+
     void    setEventLog(std::vector<Event>* log);
     void    setCurrentTick(Tick t);
 
 private:
     std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS> pallets_{};
-    std::vector<Event>* eventLog_    = nullptr;
-    Tick                currentTick_ = 0;
+    std::vector<Event>* eventLog_      = nullptr;
+    Tick                currentTick_   = 0;
+    int         dispatchedFullPallets_ = 0;
+    int             dispatchedBoxes_   = 0;
 
     int findPalletSlot(const Family& f) const;  // -1 if not found
     int findEmptyPalletSlot() const;             // -1 if all occupied
