@@ -33,6 +33,7 @@ Aisle::Aisle(int length, int numY, int numSides, Position port)
     updateMeta();
 }
 
+// Inserts new box in pendingInputBoxes and instruction on intructionQueue
 void Aisle::input(Box newBox) {
     pendingInputBoxes_.push(std::move(newBox));
     Instruction instr;
@@ -43,6 +44,7 @@ void Aisle::input(Box newBox) {
     updateMeta();
 }
 
+// Requests a box from family f 
 void Aisle::requestOutput(Family f) {
     Instruction instr;
     instr.kind         = Instruction::Kind::Output;
@@ -54,6 +56,7 @@ void Aisle::requestOutput(Family f) {
     updateMeta();
 }
 
+// Collects a box that was requested before
 std::optional<Box> Aisle::collectReadyOutput(Family f) {
     auto it = readyOutputs_.find(f);
     if (it == readyOutputs_.end() || it->second.empty()) return std::nullopt;
@@ -62,27 +65,64 @@ std::optional<Box> Aisle::collectReadyOutput(Family f) {
     return b;
 }
 
+// SSTF-inspired ordering (HDD disk scheduling analog): prioritize instructions
+// whose estimated target X is closest to a free shuttle, with aging for anti-starvation.
 void Aisle::ordenarInstrucciones() {
+    constexpr int SEEK_WEIGHT = 3;
+
     for (auto& instr : instructionQueue_) {
         Tick waited = currentTick_ - instr.issuedAt;
         instr.priority = static_cast<int>(waited);
-        if (instr.kind == Instruction::Kind::Output && instr.requestedFam) {
+
+        // Stock bonus: high-stock families drain faster
+        if (instr.kind == Instruction::Kind::Output && instr.requestedFam) { // guard: requestedFam is optional
             auto it = meta_.countByFamily.find(*instr.requestedFam);
             if (it != meta_.countByFamily.end() && it->second > 5)
                 instr.priority += 2;
         }
+
+        // SSTF: compute min seek cost across free shuttles.
+        // Input target = port_.x (pickup always at port).
+        // Output target = nearestByFamily[fam].x → port_.x (mirrors findBestBoxForShuttle cost).
+        int min_seek = -1;
+        for (const auto& shuttle : shuttles_) {
+            if (!shuttle.isFree()) continue;
+            int seek = 0;
+            if (instr.kind == Instruction::Kind::Input) {
+                seek = std::abs(shuttle.position().x - port_.x);
+            } else if (instr.requestedFam) {
+                auto it = meta_.nearestByFamily.find(*instr.requestedFam);
+                if (it == meta_.nearestByFamily.end()) {
+                    seek = length_; // family not stored yet — max penalty
+                } else {
+                    int bx = it->second.x;
+                    seek = std::abs(shuttle.position().x - bx) + std::abs(bx - port_.x);
+                }
+            }
+            if (min_seek < 0 || seek < min_seek) min_seek = seek;
+        }
+
+        // Apply normalized seek penalty; skip if no free shuttle (will wait for one)
+        if (min_seek >= 0 && length_ > 0)
+            instr.priority -= (min_seek * SEEK_WEIGHT) / length_;
+
+        if (instr.priority < 0) instr.priority = 0;
     }
+
     std::stable_sort(instructionQueue_.begin(), instructionQueue_.end(),
                      [](const Instruction& a, const Instruction& b) {
                          return a.priority > b.priority;
                      });
 }
 
+// Composition pattern: sets the belt for de aisle
 void Aisle::connectBelt(InputBelt& belt) { belt_ = &belt; }
 
+// Getters
 Aisle::Metadata Aisle::metadata() const { return meta_; }
 Position        Aisle::port()     const { return port_; }
 
+// Orchestrator function: updates aisle tick, processes boxes from the belt, order instructions and runs shuttles ticks
 void Aisle::tick() {
     ++currentTick_;
     if (belt_) {
@@ -95,8 +135,10 @@ void Aisle::tick() {
     updateMeta();
 }
 
+// Send an event to be registered
 void Aisle::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
 
+// Notifies that a box that was request is finally ready to pick up
 void Aisle::notifyBoxPlaced(const Box& b, Position where) {
     LevelKey key{where.side, where.y};
     if (where.z == 1) {
@@ -115,6 +157,7 @@ void Aisle::notifyBoxPlaced(const Box& b, Position where) {
         eventLog_->push_back({"box_stored", currentTick_, b.id(), -1, b.family()});
 }
 
+// Notifies thata  box that was requested and ready was taken
 void Aisle::notifyBoxTaken(const Box& b, Position where) {
     LevelKey key{where.side, where.y};
     if (where.z == 1) {
@@ -123,6 +166,7 @@ void Aisle::notifyBoxTaken(const Box& b, Position where) {
     // z2 removal: z1 is still empty, so x was already in freeZ1_ (no change there)
 
     // Recompute oldest arrival for this family (removed box may have been the oldest)
+    // TO-DO: para qué se usa el oldestArrival? Donde se usa?
     oldestArrivalByFamily_.erase(b.family());
     for (int s = 1; s <= numSides_; ++s) {
         for (int y = 1; y <= numY_; ++y) {
