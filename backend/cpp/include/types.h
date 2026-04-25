@@ -28,3 +28,40 @@ struct Event {
     int         pallet_id    = -1;  // pallet slot index; -1 if not applicable
     Family      family       = {};
 };
+
+// --- Per-tick state snapshots ---
+
+struct BoxSnap {
+    BoxId    id;
+    Family   family;
+    Tick     arrival_tick = 0;
+    Position position;
+};
+
+struct ShuttleSnap {
+    int         y_level      = 1;
+    Position    position;
+    std::string phase;          // "Idle"|"MovingToPickup"|"Loading"|"MovingToDrop"|"Unloading"
+    bool        is_carrying  = false;
+    BoxId       carried_box_id;
+    Family      carried_box_family;
+    std::vector<BoxSnap> floor_boxes;
+};
+
+struct AisleSnap {
+    std::vector<ShuttleSnap> shuttles;
+};
+
+struct PalletSnap {
+    int    slot          = 0;   // 0..3
+    Family family;
+    int    placed_count  = 0;
+    int    reserved_count = 0;
+    std::vector<BoxSnap> boxes;
+};
+
+struct TickSnapshot {
+    Tick     tick = 0;
+    AisleSnap aisle;
+    std::vector<PalletSnap> pallets;
+};

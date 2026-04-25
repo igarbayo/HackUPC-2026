@@ -284,3 +284,39 @@ void Aisle::updateMeta() {
 
     meta_.reservedByFamily = outputReservedByFamily_;
 }
+
+const std::vector<Shuttle>& Aisle::shuttles() const { return shuttles_; }
+
+AisleSnap Aisle::snapshot() const {
+    AisleSnap snap;
+    for (const auto& shuttle : shuttles_) {
+        ShuttleSnap ss;
+        ss.y_level  = shuttle.yLevel();
+        ss.position = shuttle.position();
+        switch (shuttle.phase()) {
+            case Shuttle::Phase::Idle:           ss.phase = "Idle";           break;
+            case Shuttle::Phase::MovingToPickup: ss.phase = "MovingToPickup"; break;
+            case Shuttle::Phase::Loading:        ss.phase = "Loading";        break;
+            case Shuttle::Phase::MovingToDrop:   ss.phase = "MovingToDrop";   break;
+            case Shuttle::Phase::Unloading:      ss.phase = "Unloading";      break;
+        }
+        const Box* cb = shuttle.carriedBox();
+        ss.is_carrying = (cb != nullptr);
+        if (cb) {
+            ss.carried_box_id     = cb->id();
+            ss.carried_box_family = cb->family();
+        }
+        int y = shuttle.yLevel();
+        for (int side = 1; side <= numSides_; ++side) {
+            for (int x = 0; x < length_; ++x) {
+                const Slot& slot = slots_[side-1][y-1][x];
+                if (const Box* b = slot.peek())
+                    ss.floor_boxes.push_back({b->id(), b->family(), b->arrivalTick(), {x, y, 1, side}});
+                if (const Box* b = slot.peekZ2())
+                    ss.floor_boxes.push_back({b->id(), b->family(), b->arrivalTick(), {x, y, 2, side}});
+            }
+        }
+        snap.shuttles.push_back(std::move(ss));
+    }
+    return snap;
+}

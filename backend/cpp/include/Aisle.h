@@ -62,6 +62,9 @@ public:
     Slot&               slotAt(Position pos);
     const Slot&         slotAt(Position pos) const;
 
+    const std::vector<Shuttle>& shuttles() const;
+    AisleSnap           snapshot() const;
+
     // Find nearest accessible slot of given family at the given Y level.
     // Returns nullopt if none found at that Y level.
     std::optional<Position> findNearestWithFamily(const Family& f, int yLevel) const;
