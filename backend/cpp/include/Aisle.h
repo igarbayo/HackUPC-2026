@@ -7,6 +7,7 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
+// types.h defines Event; Aisle stores a pointer to the shared event log.
 
 class Aisle {
 public:
@@ -14,9 +15,11 @@ public:
         std::unordered_map<Family, int>      countByFamily;
         std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
         std::unordered_map<Family, Position> nearestByFamily;   // nearest to output port
-        int                                  freeSlots      = 0;
-        int                                  pendingInputs  = 0;
-        int                                  pendingOutputs = 0;
+        int                                  freeSlots        = 0;
+        int                                  pendingInputs    = 0;
+        int                                  pendingOutputs   = 0;
+        int                                  readyOutputCount = 0; // boxes at output port
+        int                                  activeShuttles   = 0; // shuttles not idle
     };
 
     struct Instruction {
@@ -43,6 +46,8 @@ public:
     Position            outputPort()  const;
 
     void                tick();
+
+    void                setEventLog(std::vector<Event>* log);
 
     // Used by Shuttle to update metadata when placing/taking from storage slots
     void                notifyBoxPlaced(const Box& b, Position where);
@@ -75,6 +80,7 @@ private:
     std::queue<Box>          pendingInputBoxes_;
     // How many output instructions are in-flight per family
     std::unordered_map<Family, int> outputReservedByFamily_;
+    std::vector<Event>*             eventLog_ = nullptr;
 
     void assignInstructions();
     void updateMeta();

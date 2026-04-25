@@ -81,13 +81,18 @@ void Aisle::tick() {
     updateMeta();
 }
 
+void Aisle::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
+
 void Aisle::notifyBoxPlaced(const Box& b, Position where) {
-    // meta_ will be updated in updateMeta() called at end of tick
-    (void)b; (void)where;
+    (void)where;
+    if (eventLog_)
+        eventLog_->push_back({"box_stored", currentTick_, b.id(), -1, b.family()});
 }
 
 void Aisle::notifyBoxTaken(const Box& b, Position where) {
-    (void)b; (void)where;
+    (void)where;
+    if (eventLog_)
+        eventLog_->push_back({"box_retrieved", currentTick_, b.id(), -1, b.family()});
 }
 
 void Aisle::notifyOutputReady(Box b) {
@@ -214,6 +219,14 @@ void Aisle::updateMeta() {
         if (instr.kind == Instruction::Kind::Input) ++meta_.pendingInputs;
         else ++meta_.pendingOutputs;
     }
+
+    meta_.readyOutputCount = 0;
+    for (const auto& [f, q] : readyOutputs_)
+        meta_.readyOutputCount += static_cast<int>(q.size());
+
+    meta_.activeShuttles = 0;
+    for (const auto& s : shuttles_)
+        if (!s.isFree()) ++meta_.activeShuttles;
 
     meta_.reservedByFamily = outputReservedByFamily_;
 }

@@ -65,29 +65,33 @@ const std::array<std::optional<Pallet>, Robot::MAX_ACTIVE_PALLETS>& Robot::palle
     return pallets_;
 }
 
+void Robot::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
+void Robot::setCurrentTick(Tick t)              { currentTick_ = t; }
+
 void Robot::onBoxDelivered(Box b) {
     int slot = findPalletSlot(b.family());
-    if (slot != -1) {
-        pallets_[slot]->placeBox(b);
-        if (pallets_[slot]->isFull()) {
-            dispatchPallet(slot);
+
+    if (slot == -1) {
+        int emptySlot = findEmptyPalletSlot();
+        if (emptySlot != -1) {
+            pallets_[emptySlot] = Pallet(b.family());
+            slot = emptySlot;
+        } else {
+            int forceSlot = findLeastFullPalletSlot();
+            if (forceSlot != -1) {
+                dispatchPallet(forceSlot);
+                pallets_[forceSlot] = Pallet(b.family());
+                slot = forceSlot;
+            }
         }
-        return;
     }
 
-    // No open pallet for this family
-    int emptySlot = findEmptyPalletSlot();
-    if (emptySlot != -1) {
-        pallets_[emptySlot] = Pallet(b.family());
-        pallets_[emptySlot]->placeBox(b);
-    } else {
-        // All 4 pallets busy - force dispatch least full one
-        int forceSlot = findLeastFullPalletSlot();
-        if (forceSlot != -1) {
-            dispatchPallet(forceSlot);
-            pallets_[forceSlot] = Pallet(b.family());
-            pallets_[forceSlot]->placeBox(b);
-        }
+    if (slot != -1) {
+        pallets_[slot]->placeBox(b);
+        if (eventLog_)
+            eventLog_->push_back({"box_on_pallet", currentTick_, b.id(), slot, b.family()});
+        if (pallets_[slot]->isFull())
+            dispatchPallet(slot);
     }
 }
 
@@ -96,6 +100,8 @@ Pallet Robot::dispatchPallet(int slotIndex) {
         throw std::out_of_range("Robot::dispatchPallet: invalid slot index");
     if (!pallets_[slotIndex])
         throw std::runtime_error("Robot::dispatchPallet: slot is empty");
+    if (eventLog_)
+        eventLog_->push_back({"pallet_dispatched", currentTick_, 0, slotIndex, pallets_[slotIndex]->family()});
     Pallet p = std::move(*pallets_[slotIndex]);
     pallets_[slotIndex].reset();
     return p;
