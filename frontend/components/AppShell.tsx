@@ -2,13 +2,21 @@
 
 import NavBar from '@/components/NavBar'
 import Sidebar from '@/components/Sidebar'
-import { SimulationStreamProvider } from '@/lib/SimulationStreamContext'
+import { SimulationStreamProvider, useSimulationStream } from '@/lib/SimulationStreamContext'
+
+function LiveNavBar() {
+  const { streams } = useSimulationStream()
+  const count = Object.values(streams).filter(
+    s => s.status === 'streaming' || s.status === 'connecting'
+  ).length
+  return <NavBar liveCount={count} />
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SimulationStreamProvider>
       <div style={{ width: '100%', height: '100%', background: '#ffffff' }}>
-        <NavBar liveCount={0} />
+        <LiveNavBar />
         <Sidebar />
         <div style={{
           position: 'fixed',

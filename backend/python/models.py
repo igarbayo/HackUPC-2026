@@ -57,10 +57,20 @@ class RobotStateModel(BaseModel):
     pallets: list[PalletStateModel]
 
 
+class MetricsModel(BaseModel):
+    total_pallets_sent: int = 0
+    full_pallets: int = 0
+    full_pallet_ratio: float = 0.0
+    total_boxes_sent: int = 0
+    avg_fill_rate: float = 0.0
+    boxes_by_family: dict[str, int] = {}
+
+
 class TickStateModel(BaseModel):
     tick: int
     aisles: list[AisleStateModel]
     robot: RobotStateModel
+    metrics: MetricsModel = MetricsModel()
 
 
 class EventModel(BaseModel):
@@ -69,6 +79,7 @@ class EventModel(BaseModel):
     box_id: str
     pallet_id: int
     family: str
+    box_count: int = -1
 
 
 class BoxInput(BaseModel):
