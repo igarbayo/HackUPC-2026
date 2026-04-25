@@ -18,27 +18,9 @@
 //   Option 4  x=3 z=1 :  30 – 1000 + 20 =  -950   (perfect grouping → WINNER)
 
 #include "Aisle.h"
-#include "Box.h"
-#include <cassert>
+#include "helpers.h"
 #include <cmath>
-#include <iostream>
 #include <stdexcept>
-#include <string>
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-static int passed = 0;
-static int failed = 0;
-
-#define RUN(name) \
-    do { \
-        std::cout << "  " << #name << " ... "; \
-        try { name(); std::cout << "PASS\n"; ++passed; } \
-        catch (const std::exception& e) { std::cout << "FAIL (" << e.what() << ")\n"; ++failed; } \
-        catch (...) { std::cout << "FAIL (unknown exception)\n"; ++failed; } \
-    } while (0)
-
-static Box makeBox(const BoxId& id, const Family& fam) { return Box(id, fam, 0); }
 
 // ── cost-function formula (hackupc2.pdf) ─────────────────────────────────────
 
@@ -94,9 +76,8 @@ static void setupHackupcState(Aisle& aisle) {
         aisle.slotAt({3,1,1,1}).place(dummy);
         aisle.notifyBoxPlaced(dummy, {3,1,1,1});
         aisle.slotAt({3,1,1,1}).placeZ2(a3);
-        // notifyBoxPlaced for z=2 changes nothing in freeZ1_, omit.
-        Box taken = aisle.slotAt({3,1,1,1}).take();   // dummy out → z1 free again
-        aisle.notifyBoxTaken(taken, {3,1,1,1});        // re-adds x=3 to freeZ1_
+        Box taken = aisle.slotAt({3,1,1,1}).take();
+        aisle.notifyBoxTaken(taken, {3,1,1,1});
     }
 
     // x=4: z1=empty, z2=B
@@ -204,7 +185,7 @@ void test_integration_best_slot_selected() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
-    std::cout << "Aisle heuristic tests (hackupc.pdf scenario)\n";
+    SUITE("Aisle: placement heuristic (hackupc.pdf scenario)");
     RUN(test_slot_score_values);
     RUN(test_penalizacion_z_cases);
     RUN(test_integration_best_slot_selected);
