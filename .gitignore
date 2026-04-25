@@ -35,3 +35,9 @@ silos
 Thumbs.db
 desktop.ini
 
+# Frontend (Next.js)
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env*.local
+
