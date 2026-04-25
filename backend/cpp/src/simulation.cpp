@@ -10,8 +10,7 @@ std::vector<Event> run_simulation(const Params& p) {
     InputBelt belt;
     for (const auto& b : p.boxes) belt.push(b);
 
-    Aisle              aisle(p.num_slots, p.num_shuttles,
-                             Position{-1, 0}, Position{p.num_slots, 0});
+    Aisle              aisle(p.num_slots, p.num_shuttles, Position{-1, 0});
     std::vector<Robot> robots(1);
     Scheduler          scheduler(aisle, robots, belt, &log);
 

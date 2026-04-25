@@ -4,21 +4,23 @@
 #include <stdexcept>
 #include <climits>
 
-Aisle::Aisle(int length, int numShuttles, Position inputPort, Position outputPort)
-    : length_(length), inputPort_(inputPort), outputPort_(outputPort)
+// Constructor
+Aisle::Aisle(int length, int numShuttles, Position port)
+    : length_(length), port_(port)
 {
     slots_.reserve(length);
     for (int i = 0; i < length; ++i) {
         slots_.emplace_back(Position{i, 0});
+        freeSlotXs_.insert(i);
     }
-    // Shuttles start at middle of aisle
-    int midX = length / 2;
+    // Shuttles start at head (port)
     for (int i = 0; i < numShuttles; ++i) {
-        shuttles_.emplace_back(Position{midX + i, 0});
+        shuttles_.emplace_back(port_);
     }
     updateMeta();
 }
 
+// Función que recoje una caja y decide donde meterla
 void Aisle::input(Box newBox) {
     pendingInputBoxes_.push(std::move(newBox));
     Instruction instr;
@@ -29,6 +31,7 @@ void Aisle::input(Box newBox) {
     updateMeta();
 }
 
+// Pide una caja de una familia concreta
 void Aisle::requestOutput(Family f) {
     Instruction instr;
     instr.kind         = Instruction::Kind::Output;
@@ -40,6 +43,7 @@ void Aisle::requestOutput(Family f) {
     updateMeta();
 }
 
+// Función para recoger una caja lista (primera hay que pedirla)
 std::optional<Box> Aisle::collectReadyOutput(Family f) {
     auto it = readyOutputs_.find(f);
     if (it == readyOutputs_.end() || it->second.empty()) return std::nullopt;
@@ -48,8 +52,8 @@ std::optional<Box> Aisle::collectReadyOutput(Family f) {
     return b;
 }
 
+// Función que ordena las instrucciones por prioridad dinámica
 void Aisle::ordenarInstrucciones() {
-    // Recalculate priorities based on wait time and type
     for (auto& instr : instructionQueue_) {
         Tick waited = currentTick_ - instr.issuedAt;
         instr.priority = static_cast<int>(waited);
@@ -67,10 +71,11 @@ void Aisle::ordenarInstrucciones() {
                      });
 }
 
+// Getters
 Aisle::Metadata Aisle::metadata() const { return meta_; }
-Position        Aisle::inputPort()  const { return inputPort_; }
-Position        Aisle::outputPort() const { return outputPort_; }
+Position        Aisle::port()     const { return port_; }
 
+// Función que orchestra el flujo de Aisle
 void Aisle::tick() {
     ++currentTick_;
     ordenarInstrucciones();
@@ -84,13 +89,13 @@ void Aisle::tick() {
 void Aisle::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
 
 void Aisle::notifyBoxPlaced(const Box& b, Position where) {
-    (void)where;
+    freeSlotXs_.erase(where.x);
     if (eventLog_)
         eventLog_->push_back({"box_stored", currentTick_, b.id(), -1, b.family()});
 }
 
 void Aisle::notifyBoxTaken(const Box& b, Position where) {
-    (void)where;
+    freeSlotXs_.insert(where.x);
     if (eventLog_)
         eventLog_->push_back({"box_retrieved", currentTick_, b.id(), -1, b.family()});
 }
@@ -138,20 +143,12 @@ std::optional<Position> Aisle::findNearestWithFamily(const Family& f, Position r
     return best;
 }
 
-std::optional<Position> Aisle::findFreeSlot() const {
-    // Find free slot, preferring the one farthest from output port (leave near slots for fast retrieval)
-    int bestDist = -1;
-    std::optional<Position> best;
-    for (const auto& slot : slots_) {
-        if (slot.isEmpty()) {
-            int dist = std::abs(slot.position().x - outputPort_.x);
-            if (dist > bestDist) {
-                bestDist = dist;
-                best = slot.position();
-            }
-        }
-    }
-    return best;
+// preferNear=true  → smallest x (hot family, fast retrieval near port)
+// preferNear=false → largest x  (cold family, out of the way)
+std::optional<Position> Aisle::findFreeSlot(bool preferNear) const {
+    if (freeSlotXs_.empty()) return std::nullopt;
+    int x = preferNear ? *freeSlotXs_.begin() : *freeSlotXs_.rbegin();
+    return Position{x, 0};
 }
 
 void Aisle::assignInstructions() {
@@ -161,25 +158,26 @@ void Aisle::assignInstructions() {
         for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
             if (it->kind == Instruction::Kind::Input) {
                 if (pendingInputBoxes_.empty()) continue;
-                auto freePos = findFreeSlot();
+                // Hot family (has active output reservation) → store near port for fast retrieval
+                const Family& fam = pendingInputBoxes_.front().family();
+                bool isHot = outputReservedByFamily_.count(fam) &&
+                             outputReservedByFamily_.at(fam) > 0;
+                auto freePos = findFreeSlot(isHot);
                 if (!freePos) continue;
-                shuttle.assignInputMission(inputPort_, *freePos);
+                shuttle.assignInputMission(port_, *freePos);
                 instructionQueue_.erase(it);
                 break;
             } else { // Output
                 if (!it->requestedFam) continue;
-                auto nearestPos = findNearestWithFamily(*it->requestedFam, outputPort_);
+                auto nearestPos = findNearestWithFamily(*it->requestedFam, port_);
                 if (!nearestPos) {
                     // Family not available yet; skip this instruction for now
                     continue;
                 }
-                // Check if another shuttle is already heading to this slot
-                bool alreadyTargeted = false;
-                // Simple check: skip if slot is empty (another shuttle may have taken it)
-                if (slotAt(*nearestPos).isEmpty()) { alreadyTargeted = true; }
-                if (alreadyTargeted) continue;
+                // Skip if slot was already taken by another shuttle
+                if (slotAt(*nearestPos).isEmpty()) continue;
 
-                shuttle.assignOutputMission(*nearestPos, outputPort_);
+                shuttle.assignOutputMission(*nearestPos, port_);
                 instructionQueue_.erase(it);
                 break;
             }
@@ -190,12 +188,10 @@ void Aisle::assignInstructions() {
 void Aisle::updateMeta() {
     meta_.countByFamily.clear();
     meta_.nearestByFamily.clear();
-    meta_.freeSlots = 0;
+    meta_.freeSlots = static_cast<int>(freeSlotXs_.size());
 
     for (const auto& slot : slots_) {
-        if (slot.isEmpty()) {
-            ++meta_.freeSlots;
-        } else {
+        if (!slot.isEmpty()) {
             const Box* b = slot.peek();
             const Family& f = b->family();
             ++meta_.countByFamily[f];
@@ -204,8 +200,8 @@ void Aisle::updateMeta() {
             if (nearIt == meta_.nearestByFamily.end()) {
                 meta_.nearestByFamily[f] = slot.position();
             } else {
-                int curDist = std::abs(nearIt->second.x - outputPort_.x);
-                int newDist = std::abs(slot.position().x - outputPort_.x);
+                int curDist = std::abs(nearIt->second.x - port_.x);
+                int newDist = std::abs(slot.position().x - port_.x);
                 if (newDist < curDist) {
                     nearIt->second = slot.position();
                 }

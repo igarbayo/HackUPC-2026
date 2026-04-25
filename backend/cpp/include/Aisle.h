@@ -5,6 +5,7 @@
 #include "Shuttle.h"
 #include <optional>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <vector>
 // types.h defines Event; Aisle stores a pointer to the shared event log.
@@ -14,11 +15,11 @@ public:
     struct Metadata {
         std::unordered_map<Family, int>      countByFamily;
         std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
-        std::unordered_map<Family, Position> nearestByFamily;   // nearest to output port
+        std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;
-        int                                  readyOutputCount = 0; // boxes at output port
+        int                                  readyOutputCount = 0; // boxes at port ready for robot
         int                                  activeShuttles   = 0; // shuttles not idle
     };
 
@@ -31,9 +32,9 @@ public:
         int                   priority = 0;  // higher = more urgent
     };
 
-    // length: number of storage slots
-    // inputPort at x=0, outputPort at x=length+1 (virtual positions, not storage slots)
-    Aisle(int length, int numShuttles, Position inputPort, Position outputPort);
+    // length: number of storage slots (x=0..length-1)
+    // port: single head position shared by input and output (e.g. Position{-1,0})
+    Aisle(int length, int numShuttles, Position port);
 
     void                input(Box newBox);                 // belt -> aisle
     void                requestOutput(Family f);           // robot -> aisle (non-blocking)
@@ -42,17 +43,16 @@ public:
     void                ordenarInstrucciones();            // recalculates priorities
 
     Metadata            metadata()    const;
-    Position            inputPort()   const;
-    Position            outputPort()  const;
+    Position            port()        const;
 
     void                tick();
 
     void                setEventLog(std::vector<Event>* log);
 
-    // Used by Shuttle to update metadata when placing/taking from storage slots
+    // Used by Shuttle to update free-slot index and metadata when placing/taking from storage slots
     void                notifyBoxPlaced(const Box& b, Position where);
     void                notifyBoxTaken (const Box& b, Position where);
-    // Used by Shuttle when dropping box at output port
+    // Used by Shuttle when dropping box at port
     void                notifyOutputReady(Box b);
     // Used by Shuttle (input mission) to get the next box from the input buffer
     std::optional<Box>  takeFromInputBuffer();
@@ -62,21 +62,25 @@ public:
     const Slot&         slotAt(Position pos) const;
 
     std::optional<Position> findNearestWithFamily(const Family& f, Position reference) const;
-    std::optional<Position> findFreeSlot() const;
+    // preferNear=true  → smallest x (hot family, fast retrieval)
+    // preferNear=false → largest x  (cold family, out of the way)
+    std::optional<Position> findFreeSlot(bool preferNear) const;
 
 private:
     int                      length_;
-    Position                 inputPort_;
-    Position                 outputPort_;
+    Position                 port_;
     std::vector<Slot>        slots_;      // length_ storage slots, slot[i].position() = {i, 0}
     std::vector<Shuttle>     shuttles_;
     std::vector<Instruction> instructionQueue_;
     Tick                     currentTick_ = 0;
     Metadata                 meta_;
 
-    // Boxes delivered to output port, ready for Robot to collect
+    // Sorted set of free slot x-coordinates: begin()=nearest, rbegin()=farthest
+    std::set<int>            freeSlotXs_;
+
+    // Boxes delivered to port, ready for Robot to collect
     std::unordered_map<Family, std::queue<Box>> readyOutputs_;
-    // Boxes waiting at input port (arrived via input(), waiting for shuttle)
+    // Boxes waiting at port (arrived via input(), waiting for shuttle)
     std::queue<Box>          pendingInputBoxes_;
     // How many output instructions are in-flight per family
     std::unordered_map<Family, int> outputReservedByFamily_;
