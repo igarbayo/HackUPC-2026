@@ -14,11 +14,16 @@ std::vector<Event> run_simulation(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
     }
+
     Scheduler          scheduler(container, robots, belt, &log);
 
     for (int t = 0; t < p.max_ticks; ++t) {
@@ -46,11 +51,16 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
     }
+
     Scheduler          scheduler(container, robots, belt, &result.events);
 
     for (int t = 0; t < p.max_ticks; ++t) {
@@ -101,11 +111,16 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
         robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
     }
+
     Scheduler          scheduler(container, robots, belt, &events);
 
     std::size_t event_cursor = 0;

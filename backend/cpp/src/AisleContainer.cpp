@@ -90,6 +90,10 @@ int AisleContainer::selectAisleForOutput(const Family& f) const {
 
 // ── public interface ──────────────────────────────────────────────────────────
 
+void AisleContainer::placeAt(int aisle_idx, Box box, Position pos) {
+    aisles_[aisle_idx].placeAt(std::move(box), pos);
+}
+
 void AisleContainer::input(Box box) {
     aisles_[selectAisleForInput(box)].input(std::move(box));
 }

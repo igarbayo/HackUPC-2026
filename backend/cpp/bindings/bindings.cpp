@@ -27,13 +27,17 @@ PYBIND11_MODULE(scheduler_cpp, m) {
 
     py::class_<Params>(m, "Params")
         .def(py::init<>())
-        .def_readwrite("boxes",      &Params::boxes)
-        .def_readwrite("num_aisles", &Params::num_aisles)
-        .def_readwrite("num_slots",  &Params::num_slots)
-        .def_readwrite("num_y",      &Params::num_y)
-        .def_readwrite("num_sides",  &Params::num_sides)
+
+        .def_readwrite("boxes",         &Params::boxes)
+        .def_readwrite("initial_boxes", &Params::initial_boxes)
+        .def_readwrite("num_aisles",    &Params::num_aisles)
+        .def_readwrite("num_slots",     &Params::num_slots)
+        .def_readwrite("num_y",         &Params::num_y)
+        .def_readwrite("num_sides",     &Params::num_sides)
         .def_readwrite("num_robots", &Params::num_robots)
-        .def_readwrite("max_ticks",  &Params::max_ticks);
+        .def_readwrite("max_ticks",     &Params::max_ticks);
+
+
 
     m.def("run_simulation", &run_simulation,
           py::arg("params"),
@@ -43,10 +47,17 @@ PYBIND11_MODULE(scheduler_cpp, m) {
     // --- per-tick state snapshot types ---
 
     py::class_<Position>(m, "Position")
-        .def_readonly("x",    &Position::x)
-        .def_readonly("y",    &Position::y)
-        .def_readonly("z",    &Position::z)
-        .def_readonly("side", &Position::side);
+        .def(py::init<>())
+        .def_readwrite("x",    &Position::x)
+        .def_readwrite("y",    &Position::y)
+        .def_readwrite("z",    &Position::z)
+        .def_readwrite("side", &Position::side);
+
+    py::class_<PrePlacedBox>(m, "PrePlacedBox")
+        .def(py::init<>())
+        .def_readwrite("box",       &PrePlacedBox::box)
+        .def_readwrite("aisle_idx", &PrePlacedBox::aisle_idx)
+        .def_readwrite("pos",       &PrePlacedBox::pos);
 
     py::class_<BoxSnap>(m, "BoxSnap")
         .def_readonly("id",          &BoxSnap::id)

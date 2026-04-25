@@ -41,14 +41,18 @@ def _build_cpp_params(params: SimulationParams) -> scheduler_cpp.Params:
             gp.demand_profile.append(d)
         boxes = sched.generate_boxes(gp)
 
-    return sched.build_cpp_params(
-        num_aisles=params.num_aisles,
-        num_slots=params.num_slots,
-        num_y=params.num_y,
-        num_sides=params.num_sides,
+    topo = sched.get_silo_topology()
+    cpp_params = sched.build_cpp_params(
+        num_aisles=topo["num_aisles"] if topo else params.num_aisles,
+        num_slots=topo["num_slots"]   if topo else params.num_slots,
+        num_y=topo["num_y"]           if topo else params.num_y,
+        num_sides=topo["num_sides"]   if topo else params.num_sides,
         max_ticks=params.max_ticks,
         boxes=boxes if boxes else None,
     )
+    if topo:
+        cpp_params.initial_boxes = sched.parse_silo_csv()
+    return cpp_params
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)

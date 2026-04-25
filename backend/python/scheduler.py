@@ -1,10 +1,86 @@
 """Thin wrapper around the compiled C++ scheduler_cpp extension."""
 from __future__ import annotations
+import csv as _csv
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 
 import scheduler_cpp
 import store
+
+# Standard silo dimensions per challenge specification
+_SILO_NUM_AISLES = 4
+_SILO_NUM_SLOTS  = 60
+_SILO_NUM_Y      = 8
+_SILO_NUM_SIDES  = 2
+
+_silo_csv_path: Path | None = None
+_silo_boxes: list | None = None
+
+
+def set_silo_csv(path: str | None) -> None:
+    global _silo_csv_path, _silo_boxes
+    _silo_csv_path = Path(path) if path else None
+    _silo_boxes = None
+
+
+def has_silo_csv() -> bool:
+    return _silo_csv_path is not None
+
+
+def get_silo_topology() -> dict | None:
+    """Return standard silo dimensions when a CSV is loaded, else None."""
+    if not has_silo_csv():
+        return None
+    return {
+        "num_aisles": _SILO_NUM_AISLES,
+        "num_slots":  _SILO_NUM_SLOTS,
+        "num_y":      _SILO_NUM_Y,
+        "num_sides":  _SILO_NUM_SIDES,
+    }
+
+
+def _parse_silo_once() -> None:
+    global _silo_boxes
+    if _silo_boxes is not None:
+        return
+
+    result = []
+    with open(_silo_csv_path, newline="") as f:
+        for row in _csv.DictReader(f):
+            etiqueta = row["etiqueta"].strip()
+            if not etiqueta:
+                continue
+            p = row["posicion"].strip()
+            aisle_idx = int(p[0:2]) - 1
+            side      = int(p[2:4])
+            x_cpp     = int(p[4:7]) - 1   # 1-based → 0-based
+            y         = int(p[7:9])
+            z         = int(p[9:11])
+            family    = etiqueta[7:15]
+
+            box = scheduler_cpp.Box(etiqueta, family, 0)
+
+            pos = scheduler_cpp.Position()
+            pos.x    = x_cpp
+            pos.y    = y
+            pos.z    = z
+            pos.side = side
+
+            pb = scheduler_cpp.PrePlacedBox()
+            pb.box       = box
+            pb.aisle_idx = aisle_idx
+            pb.pos       = pos
+            result.append(pb)
+
+    _silo_boxes = result
+
+
+def parse_silo_csv() -> list:
+    _parse_silo_once()
+    return _silo_boxes
+
+
 from models import (
     AisleStateModel,
     BoxModel,

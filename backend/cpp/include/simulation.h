@@ -6,8 +6,19 @@
 #include <string>
 #include <vector>
 
+struct PrePlacedBox {
+    Box      box;
+    int      aisle_idx = 0;  // 0-based
+    Position pos;
+
+    PrePlacedBox() : box("", "", 0) {}
+    PrePlacedBox(Box b, int idx, Position p)
+        : box(std::move(b)), aisle_idx(idx), pos(p) {}
+};
+
 struct Params {
-    std::vector<Box> boxes;
+    std::vector<Box>          boxes;
+    std::vector<PrePlacedBox> initial_boxes;
     int num_aisles   = 4;
     int  num_slots         = 20;
     int  num_y             = 2;          // height levels; one shuttle per level

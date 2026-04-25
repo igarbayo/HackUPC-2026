@@ -4,8 +4,11 @@ services:
       context: backend/
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/cpp/data/silo-10rows.csv:/app/silo.csv:ro
     environment:
       FRONTEND_ORIGIN: "*"
+    command: [ "python", "main.py", "--csv-path", "/app/silo.csv" ]
 
   frontend:
     build:

@@ -11,6 +11,7 @@ public:
 
     AisleContainer(int numAisles, int length, int numY, int numSides, Position port);
 
+    void               placeAt(int aisle_idx, Box box, Position pos);
     void               input(Box box);
     void               requestOutput(const Family& f);
     std::optional<Box> collectReadyOutput(const Family& f);
