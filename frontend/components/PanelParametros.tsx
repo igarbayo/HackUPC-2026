@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FF, T } from '@/lib/tokens'
 import Hr from './ui/Hr'
+import { useSimulationStream } from '@/lib/SimulationStreamContext'
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -130,9 +131,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 export default function PanelParametros() {
-  const [preset, setPreset]   = useState<Preset>('basic')
-  const [params, setParams]   = useState<Params>({ ...PRESET_BASIC, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASIC.weights] })
-  const [status, setStatus]   = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const { startStream }             = useSimulationStream()
+  const [preset, setPreset]         = useState<Preset>('basic')
+  const [params, setParams]         = useState<Params>({ ...PRESET_BASIC, demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASIC.weights] })
+  const [status, setStatus]         = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [ticksPerSecond, setTicksPerSecond] = useState(1)
 
   function applyPreset(p: Preset) {
     if (p === 'basic')    setParams({ ...PRESET_BASIC,    demand_profile: [...DEMAND_DEFAULT], weights: [...PRESET_BASIC.weights] })
@@ -181,6 +184,9 @@ export default function PanelParametros() {
         }),
       })
       if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      localStorage.setItem(`silos_tps_${data.sim_id}`, String(ticksPerSecond))
+      startStream(data.sim_id, ticksPerSecond)
       setStatus('ok')
       setTimeout(() => setStatus('idle'), 2000)
     } catch {
@@ -247,6 +253,9 @@ export default function PanelParametros() {
         </Field>
         <Field label="Arrival std dev (ticks)">
           <NumInput value={params.std_inter_arrival_ticks} step={0.001} min={0} onChange={v => patch('std_inter_arrival_ticks', v)} />
+        </Field>
+        <Field label="Playback speed (ticks/s)">
+          <NumInput value={ticksPerSecond} step={0.5} min={0.5} onChange={setTicksPerSecond} />
         </Field>
       </div>
 
