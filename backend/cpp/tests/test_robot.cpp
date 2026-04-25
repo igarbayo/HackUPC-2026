@@ -144,9 +144,8 @@ void test_same_family_same_pallet() {
 
 // Full pipeline: box enters the aisle, robot ticks until it collects and places it.
 void test_tick_integration_with_aisle() {
-    // Small aisle: 5 storage slots, 1 shuttle
-    // inputPort at x=-1 (virtual), outputPort at x=5 (virtual)
-    Aisle aisle(5, 1, Position{-1, 0}, Position{5, 0});
+    // Small aisle: 5 storage slots, 1 shuttle, single port at x=-1
+    Aisle aisle(5, 1, Position{-1, 0});
 
     std::vector<Event> log;
     aisle.setEventLog(&log);
