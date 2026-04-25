@@ -308,94 +308,6 @@ void test_threshold_blocks_high_score_low_count_family() {
     assert( req.count("Y") && "Y meets OPEN_THRESHOLD and must get the free slot");
 }
 
-// avgFillRate is correct across a mix of one full and one half-full pallet.
-void test_stats_mixed_fill_rate() {
-    Robot robot;
-    robot.setCurrentTick(1);
-
-    // Full pallet of A (auto-dispatched)
-    for (int i = 1; i <= Pallet::CAPACITY; ++i)
-        robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
-
-    // Half-full pallet of B, then manually dispatch it
-    int half = Pallet::CAPACITY / 2;
-    for (int i = 1; i <= half; ++i)
-        robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
-
-    int bSlot = -1;
-    for (int i = 0; i < Robot::MAX_ACTIVE_PALLETS; ++i)
-        if (robot.pallets()[i] && robot.pallets()[i]->family() == "B") { bSlot = i; break; }
-    assert(bSlot != -1 && "B pallet must be open");
-    robot.dispatchPallet(bSlot);
-
-    assert(robot.totalPalletsSent()  == 2);
-    assert(robot.filledPalletsSent() == 1);
-    assert(robot.totalBoxesSent()    == Pallet::CAPACITY + half);
-
-    float expected = static_cast<float>(Pallet::CAPACITY + half) / (2.0f * Pallet::CAPACITY);
-    float actual   = robot.avgFillRate();
-    assert(actual > expected - 0.001f && actual < expected + 0.001f);
-}
-
-// After dispatching a full pallet, all counters reflect exactly one filled pallet.
-void test_stats_full_pallet() {
-    Robot robot;
-    robot.setCurrentTick(1);
-    for (int i = 1; i <= Pallet::CAPACITY; ++i)
-        robot.onBoxDelivered(makeBox(std::to_string(i), "A"));
-
-    assert(robot.totalPalletsSent()      == 1);
-    assert(robot.filledPalletsSent()     == 1);
-    assert(robot.totalBoxesSent()        == Pallet::CAPACITY);
-    assert(robot.boxesSentForFamily("A") == Pallet::CAPACITY);
-    assert(robot.boxesSentForFamily("Z") == 0);  // unknown family → 0
-    assert(robot.avgFillRate()           == 1.0f);
-}
-
-// Force-evicting a partial pallet decrements filledPallets and yields avgFillRate < 1.
-void test_stats_partial_pallet_fill_rate() {
-    Robot robot;
-    robot.setCurrentTick(1);
-
-    // Fill all 4 slots with 3 boxes each (equal, so whichever is evicted is partial)
-    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
-    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
-    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("c" + std::to_string(i), "C"));
-    for (int i = 1; i <= 3; ++i) robot.onBoxDelivered(makeBox("d" + std::to_string(i), "D"));
-
-    // Deliver a 5th family — triggers force eviction of one 3-box pallet
-    robot.onBoxDelivered(makeBox("e1", "E"));
-
-    assert(robot.totalPalletsSent()  == 1);
-    assert(robot.filledPalletsSent() == 0);                  // 3 < CAPACITY
-    assert(robot.totalBoxesSent()    == 3);
-    assert(robot.avgFillRate()       >  0.0f);
-    assert(robot.avgFillRate()       <  1.0f);
-}
-
-// After dispatching pallets for two families, per-family and aggregate stats are consistent.
-void test_stats_boxes_by_family() {
-    Robot robot;
-    robot.setCurrentTick(1);
-
-    for (int i = 1; i <= Pallet::CAPACITY; ++i)
-        robot.onBoxDelivered(makeBox("a" + std::to_string(i), "A"));
-    for (int i = 1; i <= Pallet::CAPACITY; ++i)
-        robot.onBoxDelivered(makeBox("b" + std::to_string(i), "B"));
-
-    assert(robot.totalPalletsSent()      == 2);
-    assert(robot.filledPalletsSent()     == 2);
-    assert(robot.totalBoxesSent()        == 2 * Pallet::CAPACITY);
-    assert(robot.boxesSentForFamily("A") == Pallet::CAPACITY);
-    assert(robot.boxesSentForFamily("B") == Pallet::CAPACITY);
-
-    const auto& byFamily = robot.boxesSentByFamily();
-    assert(byFamily.count("A") && byFamily.at("A") == Pallet::CAPACITY);
-    assert(byFamily.count("B") && byFamily.at("B") == Pallet::CAPACITY);
-
-    assert(robot.avgFillRate() == 1.0f);
-}
-
 // findLeastCompletablePalletSlot scores slots as placed + available_in_aisle (lastMeta_).
 // Without aisle data A (placed=1) would be cheapest and evicted.
 // After robot.tick() populates lastMeta_ with 5 A-boxes, A's score rises to 6 and
@@ -541,10 +453,6 @@ int main() {
     RUN(test_bulk_request_pipelining);
     RUN(test_eviction_uses_aisle_metadata);
     RUN(test_threshold_blocks_high_score_low_count_family);
-    RUN(test_stats_mixed_fill_rate);
-    RUN(test_stats_full_pallet);
-    RUN(test_stats_partial_pallet_fill_rate);
-    RUN(test_stats_boxes_by_family);
     RUN(test_score_prefers_nearby_family);
     RUN(test_exhausted_families_dispatched_on_tick);
 

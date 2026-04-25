@@ -135,21 +135,9 @@ const std::array<std::optional<Pallet>, Robot::MAX_ACTIVE_PALLETS>& Robot::palle
     return pallets_;
 }
 
-int   Robot::totalPalletsSent()  const { return totalPallets_; }
-int   Robot::filledPalletsSent() const { return filledPallets_; }
-int   Robot::totalBoxesSent()    const { return totalBoxes_; }
-int   Robot::boxesSentForFamily(const Family& f) const {
-    auto it = boxesByFamily_.find(f);
-    return it != boxesByFamily_.end() ? it->second : 0;
-}
-const std::unordered_map<Family, int>& Robot::boxesSentByFamily() const { return boxesByFamily_; }
-float Robot::avgFillRate() const {
-    if (totalPallets_ == 0) return 0.0f;
-    return static_cast<float>(totalBoxes_) /
-           (static_cast<float>(totalPallets_) * Pallet::CAPACITY);
-}
 void Robot::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
 void Robot::setCurrentTick(Tick t)               { currentTick_ = t; }
+void Robot::setRobotId(int id)                   { robotId_ = id; }
 
 // ── onBoxDelivered ────────────────────────────────────────────────────────────
 
@@ -175,7 +163,7 @@ void Robot::onBoxDelivered(Box b) {
     if (slot != -1) {
         pallets_[slot]->placeBox(b);
         if (eventLog_)
-            eventLog_->push_back({"box_on_pallet", currentTick_, b.id(), slot, b.family()});
+            eventLog_->push_back({"box_on_pallet", currentTick_, b.id(), slot, b.family(), robotId_});
         if (pallets_[slot]->isFull())
             dispatchPallet(slot);
     }
@@ -188,15 +176,9 @@ Pallet Robot::dispatchPallet(int slotIndex) {
         throw std::out_of_range("Robot::dispatchPallet: invalid slot index");
     if (!pallets_[slotIndex])
         throw std::runtime_error("Robot::dispatchPallet: slot is empty");
-    if (eventLog_)
-        eventLog_->push_back({"pallet_dispatched", currentTick_, {}, slotIndex, pallets_[slotIndex]->family()});
-
     int    boxes = pallets_[slotIndex]->placedCount();
-    Family fam   = pallets_[slotIndex]->family();
-    ++totalPallets_;
-    totalBoxes_          += boxes;
-    boxesByFamily_[fam]  += boxes;
-    if (boxes == Pallet::CAPACITY) ++filledPallets_;
+    if (eventLog_)
+        eventLog_->push_back({"pallet_dispatched", currentTick_, {}, slotIndex, pallets_[slotIndex]->family(), robotId_, boxes});
 
     Pallet p = std::move(*pallets_[slotIndex]);
     pallets_[slotIndex].reset();
