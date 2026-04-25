@@ -144,6 +144,7 @@ Position        Aisle::port()     const { return port_; }
 // Orchestrator function: updates aisle tick, processes boxes from the belt, order instructions and runs shuttles ticks
 void Aisle::tick() {
     ++currentTick_;
+    updateMeta();
     if (belt_) {
         while (belt_->peek() && belt_->peek()->arrivalTick() <= currentTick_)
             input(std::move(*belt_->pop()));

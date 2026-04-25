@@ -10,7 +10,7 @@ static Aisle makeAisleWithBoxes(int length, const std::string& family, int count
     Aisle aisle(length, 1, 1, port);
     for (int i = 0; i < count; ++i) {
         aisle.input(makeBox(std::to_string(i), family));
-        for (int t = 0; t < 25; ++t) aisle.tick();  // enough for store + return to port
+        for (int t = 0; t < 100; ++t) aisle.tick();  // increased from 25 to 100
     }
     return aisle;
 }

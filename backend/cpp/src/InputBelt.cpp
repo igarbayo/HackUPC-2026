@@ -21,6 +21,7 @@ BoxGeneratorParams BoxGeneratorParams::fromFile(const std::string& path) {
         p.weights = j["weights"].get<std::unordered_map<Family, double>>();
     if (j.contains("mean_inter_arrival_ticks")) p.mean_inter_arrival_ticks = j["mean_inter_arrival_ticks"];
     if (j.contains("std_inter_arrival_ticks"))  p.std_inter_arrival_ticks  = j["std_inter_arrival_ticks"];
+    if (j.contains("max_arrival_tick")) p.max_arrival_tick = j["max_arrival_tick"].get<Tick>();
     if (j.contains("demand_profile")) {
         for (const auto& seg : j["demand_profile"]) {
             DemandPeriod dp;
@@ -138,6 +139,7 @@ InputBelt InputBelt::generate(const BoxGeneratorParams& p) {
         double k      = multiplierAt(cumTick);
         double sample = std::max(0.0, mu_base / k + (sigma_base / k) * arrivalDist(rng));
         cumTick      += static_cast<Tick>(std::llround(sample));
+        if (cumTick > p.max_arrival_tick) break;
 
         int         idx   = dist(rng);
         const auto& entry = table[idx];

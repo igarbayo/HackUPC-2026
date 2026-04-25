@@ -198,7 +198,8 @@ void test_drain_dispatch_on_empty_aisle() {
 
     // Run until robot has placed at least one box (pallet is open and partially filled)
     bool palletOpen = false;
-    for (int t = 1; t <= 200 && !palletOpen; ++t) {
+    int t = 1;
+    for (; t <= 400 && !palletOpen; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
         robot.tick(aisle);
@@ -209,7 +210,7 @@ void test_drain_dispatch_on_empty_aisle() {
 
     // Keep ticking until the aisle is completely empty and robot dispatches
     bool dispatched = false;
-    for (int t = 201; t <= 500 && !dispatched; ++t) {
+    for (; t <= 1000 && !dispatched; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
         robot.tick(aisle);

@@ -1,0 +1,71 @@
+#include "benchmark.h"
+#include "simulation.h"
+#include "InputBelt.h"
+#include "Pallet.h"
+#include <cmath>
+
+BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
+    const double mean = 3600.0 / cfg.rate_boxes_per_hour;
+    const double std  = cfg.cv * mean;
+
+    // Generous box ceiling: 3x the expected count so max_arrival_tick exits first.
+    const double expected_boxes = cfg.rate_boxes_per_hour * (cfg.input_phase_ticks / 3600.0);
+    const int    box_ceiling    = static_cast<int>(std::ceil(expected_boxes * 3.0));
+
+    BoxGeneratorParams gen;
+    gen.mean_inter_arrival_ticks = mean;
+    gen.std_inter_arrival_ticks  = std;
+    gen.num_destinations         = cfg.num_destinations;
+    gen.seed                     = cfg.seed;
+    gen.num_boxes                = box_ceiling;
+    gen.max_arrival_tick         = cfg.input_phase_ticks;
+
+    InputBelt belt = InputBelt::generate(gen);
+
+    Params p;
+    p.num_slots         = cfg.num_slots;
+    p.num_y             = cfg.num_y;
+    p.num_sides         = cfg.num_sides;
+    p.input_phase_ticks = cfg.input_phase_ticks;
+    p.heuristic_name    = cfg.heuristic;
+    p.heuristic_seed    = cfg.seed;
+    p.max_ticks         = static_cast<int>(cfg.input_phase_ticks);
+
+    while (auto b = belt.pop()) p.boxes.push_back(std::move(*b));
+
+    const auto events = run_simulation(p);
+
+    BenchmarkResult r;
+    r.heuristic                = cfg.heuristic;
+    r.num_robots               = cfg.num_robots;
+    r.num_aisles               = cfg.num_aisles;
+    r.rate_boxes_per_hour      = cfg.rate_boxes_per_hour;
+    r.mean_inter_arrival_ticks = mean;
+    r.std_inter_arrival_ticks  = std;
+    r.num_destinations         = cfg.num_destinations;
+    r.input_phase_ticks        = cfg.input_phase_ticks;
+    r.seed                     = cfg.seed;
+
+    for (const auto& e : events) {
+        if (e.type == "done") {
+            r.finish_tick = e.logical_time;
+            continue;
+        }
+        if (e.type == "pallet_dispatched" && e.robot_id >= 0) {
+            ++r.total_pallets_sent;
+            r.total_boxes_sent += e.box_count;
+            if (e.box_count == Pallet::CAPACITY) ++r.filled_pallets;
+        }
+    }
+
+    if (r.total_pallets_sent > 0) {
+        r.pct_pallets_filled  = static_cast<double>(r.filled_pallets) / r.total_pallets_sent;
+        r.avg_pallet_capacity = static_cast<double>(r.total_boxes_sent) /
+                                (r.total_pallets_sent * Pallet::CAPACITY);
+    }
+    if (r.filled_pallets > 0) {
+        r.ticks_per_filled_pallet = static_cast<double>(r.finish_tick) / r.filled_pallets;
+    }
+
+    return r;
+}

@@ -25,6 +25,10 @@ struct BoxGeneratorParams {
     double std_inter_arrival_ticks  = 0.072;  // ticks std dev (3.6 * 20/1000)
     std::vector<DemandPeriod>          demand_profile;          // empty = flat rate
 
+    // Stop generating once the cumulative arrival tick exceeds this value.
+    // Default UINT64_MAX means generate exactly num_boxes regardless of time.
+    Tick max_arrival_tick = UINT64_MAX;
+
     // Load from JSON file; missing fields keep their default values.
     static BoxGeneratorParams fromFile(const std::string& path);
 };
