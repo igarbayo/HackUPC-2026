@@ -27,7 +27,7 @@ static Box makeBox(BoxId id, const std::string& family) {
 // Delivering one box opens a pallet and places the box on it.
 void test_basic_placement() {
     Robot robot;
-    robot.onBoxDelivered(makeBox(1, "A"));
+    robot.onBoxDelivered(makeBox("1", "A"));
 
     const auto& pallets = robot.pallets();
     int slot = -1;
@@ -48,7 +48,7 @@ void test_pallet_auto_dispatch_on_full() {
 
     for (int i = 1; i <= Pallet::CAPACITY; ++i) {
         robot.setCurrentTick(i);
-        robot.onBoxDelivered(makeBox(i, "A"));
+        robot.onBoxDelivered(makeBox(std::to_string(i), "A"));
     }
 
     // Slot should be empty — pallet was dispatched
@@ -73,10 +73,10 @@ void test_pallet_auto_dispatch_on_full() {
 // Boxes of four different families open four separate pallets.
 void test_multi_family_pallets() {
     Robot robot;
-    robot.onBoxDelivered(makeBox(1, "A"));
-    robot.onBoxDelivered(makeBox(2, "B"));
-    robot.onBoxDelivered(makeBox(3, "C"));
-    robot.onBoxDelivered(makeBox(4, "D"));
+    robot.onBoxDelivered(makeBox("1", "A"));
+    robot.onBoxDelivered(makeBox("2", "B"));
+    robot.onBoxDelivered(makeBox("3", "C"));
+    robot.onBoxDelivered(makeBox("4", "D"));
 
     const auto& pallets = robot.pallets();
     int occupied = 0;
@@ -95,19 +95,19 @@ void test_force_dispatch_least_full() {
 
     // Fill all 4 slots with different families (different box counts)
     // A:2  B:3  C:1  D:4
-    robot.onBoxDelivered(makeBox(1,  "A"));
-    robot.onBoxDelivered(makeBox(2,  "A"));
-    robot.onBoxDelivered(makeBox(3,  "B"));
-    robot.onBoxDelivered(makeBox(4,  "B"));
-    robot.onBoxDelivered(makeBox(5,  "B"));
-    robot.onBoxDelivered(makeBox(6,  "C"));          // C:1 — least full
-    robot.onBoxDelivered(makeBox(7,  "D"));
-    robot.onBoxDelivered(makeBox(8,  "D"));
-    robot.onBoxDelivered(makeBox(9,  "D"));
-    robot.onBoxDelivered(makeBox(10, "D"));
+    robot.onBoxDelivered(makeBox("1",  "A"));
+    robot.onBoxDelivered(makeBox("2",  "A"));
+    robot.onBoxDelivered(makeBox("3",  "B"));
+    robot.onBoxDelivered(makeBox("4",  "B"));
+    robot.onBoxDelivered(makeBox("5",  "B"));
+    robot.onBoxDelivered(makeBox("6",  "C"));          // C:1 — least full
+    robot.onBoxDelivered(makeBox("7",  "D"));
+    robot.onBoxDelivered(makeBox("8",  "D"));
+    robot.onBoxDelivered(makeBox("9",  "D"));
+    robot.onBoxDelivered(makeBox("10", "D"));
 
     // All 4 slots occupied; delivering family E triggers force dispatch
-    robot.onBoxDelivered(makeBox(11, "E"));
+    robot.onBoxDelivered(makeBox("11", "E"));
 
     // C (1 box) should have been evicted; E should now occupy its slot
     const auto& pallets = robot.pallets();
@@ -131,9 +131,9 @@ void test_force_dispatch_least_full() {
 // Boxes of the same family always land on the same pallet (not scattered).
 void test_same_family_same_pallet() {
     Robot robot;
-    robot.onBoxDelivered(makeBox(1, "A"));
-    robot.onBoxDelivered(makeBox(2, "B"));
-    robot.onBoxDelivered(makeBox(3, "A"));
+    robot.onBoxDelivered(makeBox("1", "A"));
+    robot.onBoxDelivered(makeBox("2", "B"));
+    robot.onBoxDelivered(makeBox("3", "A"));
 
     const auto& pallets = robot.pallets();
     int countA = 0;
@@ -153,7 +153,7 @@ void test_tick_integration_with_aisle() {
     Robot robot;
     robot.setEventLog(&log);
 
-    aisle.input(makeBox(42, "X"));
+    aisle.input(makeBox("42", "X"));
 
     bool received = false;
     for (int t = 1; t <= 50 && !received; ++t) {
