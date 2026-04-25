@@ -5,6 +5,7 @@
 #include <optional>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -13,6 +14,9 @@ struct BoxGeneratorParams {
     int                                num_destinations = 20;   // clamped to available list
     std::unordered_map<Family, double> weights;                 // empty = uniform
     uint64_t                           seed             = 42;
+
+    // Load from JSON file; missing fields keep their default values.
+    static BoxGeneratorParams fromFile(const std::string& path);
 };
 
 class InputBelt {

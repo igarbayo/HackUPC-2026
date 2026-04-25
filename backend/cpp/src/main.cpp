@@ -2,12 +2,12 @@
 #include "InputBelt.h"
 #include <iostream>
 
-int main() {
-    BoxGeneratorParams gen;
-    gen.num_boxes        = 30;
-    gen.num_destinations = 5;
-    gen.seed             = 42;
+int main(int argc, char* argv[]) {
+    const std::string config_path = (argc > 1)
+        ? argv[1]
+        : "backend/cpp/input/generator_config.json";
 
+    BoxGeneratorParams gen = BoxGeneratorParams::fromFile(config_path);
     InputBelt belt = InputBelt::generate(gen);
 
     Params p;

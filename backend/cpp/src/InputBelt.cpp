@@ -1,8 +1,26 @@
 #include "InputBelt.h"
+#include "json.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <fstream>
 #include <random>
 #include <stdexcept>
+
+BoxGeneratorParams BoxGeneratorParams::fromFile(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open())
+        throw std::runtime_error("BoxGeneratorParams::fromFile: cannot open " + path);
+
+    nlohmann::json j = nlohmann::json::parse(f);
+
+    BoxGeneratorParams p;
+    if (j.contains("num_boxes"))        p.num_boxes        = j["num_boxes"];
+    if (j.contains("num_destinations")) p.num_destinations = j["num_destinations"];
+    if (j.contains("seed"))             p.seed             = j["seed"].get<uint64_t>();
+    if (j.contains("weights"))
+        p.weights = j["weights"].get<std::unordered_map<Family, double>>();
+    return p;
+}
 
 void InputBelt::push(Box b) {
     queue_.push_back(std::move(b));
