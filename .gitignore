@@ -1,0 +1,37 @@
+# Build
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.make
+
+# Binaries
+*.exe
+*.out
+silos
+
+# Compiler artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.sdf
+*.suo
+*.VC.db
+*.VC.opendb
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
