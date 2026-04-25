@@ -1,17 +1,21 @@
 #include "simulation.h"
+#include "InputBelt.h"
 #include <iostream>
 
-int main() {
+int main(int argc, char* argv[]) {
+    const std::string config_path = (argc > 1)
+        ? argv[1]
+        : "backend/cpp/input/generator_config.json";
+
+    BoxGeneratorParams gen = BoxGeneratorParams::fromFile(config_path);
+    InputBelt belt = InputBelt::generate(gen);
+
     Params p;
     p.num_slots    = 20;
     p.num_shuttles = 2;
     p.max_ticks    = 10000;
 
-    static BoxId nextId = 1;
-    for (const std::string f : {"zara", "bershka", "stradivarius", "zara", "bershka",
-                                 "zara", "zara", "stradivarius", "bershka", "zara"}) {
-        p.boxes.emplace_back(nextId++, f, static_cast<Tick>(p.boxes.size()));
-    }
+    while (auto b = belt.pop()) p.boxes.push_back(*b);
 
     const auto events = run_simulation(p);
 
@@ -20,9 +24,9 @@ int main() {
 
     for (const auto& e : events) {
         std::cout << "[t=" << e.logical_time << "] " << e.type;
-        if (e.box_id > 0)       std::cout << "  box="    << e.box_id;
-        if (!e.family.empty())  std::cout << "  family=" << e.family;
-        if (e.pallet_id >= 0)   std::cout << "  pallet=" << e.pallet_id;
+        if (!e.box_id.empty()) std::cout << "  box=" << e.box_id;
+        if (!e.family.empty()) std::cout << "  family=" << e.family;
+        if (e.pallet_id >= 0)  std::cout << "  pallet=" << e.pallet_id;
         std::cout << '\n';
     }
     return 0;

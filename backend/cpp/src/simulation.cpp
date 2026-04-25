@@ -28,6 +28,6 @@ std::vector<Event> run_simulation(const Params& p) {
         if (done) break;
     }
 
-    log.push_back({"done", scheduler.currentTick(), 0, -1, {}});
+    log.push_back({"done", scheduler.currentTick(), {}, -1, {}});
     return log;
 }

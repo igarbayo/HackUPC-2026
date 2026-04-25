@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include "simulation.h"
+#include "InputBelt.h"
 
 namespace py = pybind11;
 
@@ -32,4 +33,26 @@ PYBIND11_MODULE(scheduler_cpp, m) {
           py::arg("params"),
           py::call_guard<py::gil_scoped_release>(),
           "Run full simulation; returns list of Event objects");
+
+    // --- box generation ---
+
+    py::class_<BoxGeneratorParams>(m, "BoxGeneratorParams")
+        .def(py::init<>())
+        .def_readwrite("num_boxes",        &BoxGeneratorParams::num_boxes)
+        .def_readwrite("num_destinations", &BoxGeneratorParams::num_destinations)
+        .def_readwrite("weights",          &BoxGeneratorParams::weights)
+        .def_readwrite("seed",             &BoxGeneratorParams::seed);
+
+    m.def("generate_boxes",
+        [](const BoxGeneratorParams& p) {
+            InputBelt belt = InputBelt::generate(p);
+            std::vector<Box> out;
+            out.reserve(static_cast<std::size_t>(p.num_boxes));
+            while (auto b = belt.pop()) out.push_back(*b);
+            return out;
+        },
+        py::arg("params"),
+        py::call_guard<py::gil_scoped_release>());
+
+    m.def("available_destinations", &InputBelt::availableDestinations);
 }
