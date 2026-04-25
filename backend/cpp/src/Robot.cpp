@@ -34,6 +34,7 @@ void Robot::tick(Aisle& aisle) {
     // Collect for all open pallets
     for (auto& palletOpt : pallets_) {
         if (!palletOpt) continue;
+        // Aisle could have multiple ready boxes for this family - collect them all
         while (auto boxOpt = aisle.collectReadyOutput(palletOpt->family())) {
             onBoxDelivered(*boxOpt);
         }
