@@ -138,7 +138,7 @@ void Aisle::tick() {
 // Send an event to be registered
 void Aisle::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
 
-// Notifies that a box that was request is finally ready to pick up
+// Notifies that a box was set in a slot by a shuttle
 void Aisle::notifyBoxPlaced(const Box& b, Position where) {
     LevelKey key{where.side, where.y};
     if (where.z == 1) {
@@ -166,7 +166,7 @@ void Aisle::notifyBoxTaken(const Box& b, Position where) {
     // z2 removal: z1 is still empty, so x was already in freeZ1_ (no change there)
 
     // Recompute oldest arrival for this family (removed box may have been the oldest)
-    // TO-DO: para qué se usa el oldestArrival? Donde se usa?
+    // TO-DO: comprobar si oldestArrivalByFamily_se usa (actualmente no). Si no se usa eliminar el atributo y toda la logica relacionada
     oldestArrivalByFamily_.erase(b.family());
     for (int s = 1; s <= numSides_; ++s) {
         for (int y = 1; y <= numY_; ++y) {
@@ -190,7 +190,7 @@ void Aisle::notifyBoxTaken(const Box& b, Position where) {
     if (eventLog_)
         eventLog_->push_back({"box_retrieved", currentTick_, b.id(), -1, b.family()});
 }
-
+// Notifies that a box that was requested by the robot is finally ready to pick up
 void Aisle::notifyOutputReady(Box b) {
     auto it = outputReservedByFamily_.find(b.family());
     if (it != outputReservedByFamily_.end() && it->second > 0)
@@ -198,6 +198,7 @@ void Aisle::notifyOutputReady(Box b) {
     readyOutputs_[b.family()].push(std::move(b));
 }
 
+// Pops the box from the belt
 std::optional<Box> Aisle::takeFromInputBuffer() {
     if (!pendingInputBoxes_.empty()) {
         Box b = std::move(pendingInputBoxes_.front());
@@ -207,7 +208,7 @@ std::optional<Box> Aisle::takeFromInputBuffer() {
     if (belt_) return belt_->pop();
     return std::nullopt;
 }
-
+// returns a mutable reference of the slot
 Slot& Aisle::slotAt(Position pos) {
     if (pos.x < 0 || pos.x >= length_)
         throw std::out_of_range("Aisle::slotAt: x out of range");
@@ -217,7 +218,7 @@ Slot& Aisle::slotAt(Position pos) {
         throw std::out_of_range("Aisle::slotAt: side out of range");
     return slots_[pos.side - 1][pos.y - 1][pos.x];
 }
-
+// returns a non-mutable reference of the slot
 const Slot& Aisle::slotAt(Position pos) const {
     if (pos.x < 0 || pos.x >= length_)
         throw std::out_of_range("Aisle::slotAt: x out of range");
@@ -228,6 +229,10 @@ const Slot& Aisle::slotAt(Position pos) const {
     return slots_[pos.side - 1][pos.y - 1][pos.x];
 }
 
+// Returns the position of the best box of family f for the shuttle to pick up and carry to the port.
+// Cost = |shuttle.x - box.x| + |box.x - port.x|. Tiebreaks: prefer full slots (picking z1 frees
+// a blocked z2), then larger x. Returns nullopt if no box of family f exists at the shuttle's y level.
+// Called by: Aisle::assignInstructions (Aisle.cpp:344, 401).
 std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position shuttlePos) const {
     const int yLevel = shuttlePos.y;
     if (yLevel < 1 || yLevel > numY_) return std::nullopt;
@@ -264,6 +269,16 @@ std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position s
     return best;
 }
 
+// Heuristic slot selector for storing a box in the aisle at row y.
+// Scores every free z1 slot with a weighted cost:
+//   W1 * |x - xIdeal|          — prefer x near the "ideal" position, which shifts toward x=0
+//                                 as the aisle fills up (more stock → place closer to port).
+//   W2 * penZ                  — slot penalty: empty slot (+1000, wasteful), same-family z2 (-1000,
+//                                 colocation bonus), different-family z2 (+500, mixed cell penalty).
+//   W3 * |x - nextPickX|       — prefer slots near the next pending output pick, reducing travel.
+//   W4 * shuttleLoad * 10      — heavy penalty when the shuttle is already busy (avoid contention).
+// Returns nullopt if no free z1 slot exists at row y.
+// Called by: Aisle::assignNextTo (Aisle.cpp:331).
 std::optional<Position> Aisle::findBestInputSlot(const Box& box, int y) const {
     if (y < 1 || y > numY_) return std::nullopt;
 
@@ -315,6 +330,10 @@ std::optional<Position> Aisle::findBestInputSlot(const Box& box, int y) const {
     return best;
 }
 
+// Assigns the first viable pending instruction to shuttle s.
+// Input: picks next box from belt, reserves best slot, sends store mission.
+// Output: locates requested family box, sends retrieve mission.
+// Called by: Shuttle::onMissionComplete (Shuttle.cpp:96), Aisle::tick (Aisle.cpp:395).
 void Aisle::assignNextTo(Shuttle& s) {
     if (!s.isFree() || instructionQueue_.empty()) return;
     const int shuttleY = s.yLevel();
@@ -350,6 +369,9 @@ void Aisle::assignNextTo(Shuttle& s) {
     }
 }
 
+// Returns the slot (on level y) closest to the port that holds a box of family f,
+// skipping slots already claimed. Returns nullopt if none found.
+// Called by: findBestBoxForShuttle (Aisle.cpp:296).
 std::optional<Position> Aisle::findNearestWithFamily(const Family& f, int y) const {
     if (y < 1 || y > numY_) return std::nullopt;
     int bestDist = INT_MAX;
