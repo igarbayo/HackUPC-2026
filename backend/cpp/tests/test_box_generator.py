@@ -84,9 +84,10 @@ def test_different_seeds_differ():
     assert [b.family for b in b1] != [b.family for b in b2]
 
 
-def test_arrival_tick_zero():
+def test_arrival_tick_first_box_positive():
     boxes = cpp.generate_boxes(make_params())
-    assert all(b.arrival_tick == 0 for b in boxes), "All arrival_ticks must be 0"
+    assert boxes[0].arrival_tick >= 0, "arrival_tick must be non-negative"
+    assert not all(b.arrival_tick == 0 for b in boxes), "arrival_ticks should spread over time"
 
 
 if __name__ == "__main__":
@@ -102,7 +103,7 @@ if __name__ == "__main__":
         test_weighted_distribution,
         test_reproducible,
         test_different_seeds_differ,
-        test_arrival_tick_zero,
+        test_arrival_tick_first_box_positive,
     ]
     passed = failed = 0
     for t in tests:
