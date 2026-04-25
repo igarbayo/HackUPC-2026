@@ -65,6 +65,8 @@ const std::array<std::optional<Pallet>, Robot::MAX_ACTIVE_PALLETS>& Robot::palle
     return pallets_;
 }
 
+int  Robot::dispatchedPallets()                 const { return dispatchedFullPallets_; }
+int  Robot::dispatchedBoxes()                   const { return dispatchedBoxes_; }
 void Robot::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
 void Robot::setCurrentTick(Tick t)              { currentTick_ = t; }
 
@@ -102,6 +104,13 @@ Pallet Robot::dispatchPallet(int slotIndex) {
         throw std::runtime_error("Robot::dispatchPallet: slot is empty");
     if (eventLog_)
         eventLog_->push_back({"pallet_dispatched", currentTick_, 0, slotIndex, pallets_[slotIndex]->family()});
+
+    int dispatchedBoxes = pallets_[slotIndex]->placedCount();
+    dispatchedBoxes_ += dispatchedBoxes;
+    if (dispatchedBoxes == Pallet::CAPACITY)
+        ++dispatchedFullPallets_;
+
+
     Pallet p = std::move(*pallets_[slotIndex]);
     pallets_[slotIndex].reset();
     return p;
