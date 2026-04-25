@@ -2,6 +2,13 @@
   "num_boxes": 500,
   "num_destinations": 23,
   "seed": 42,
+  "mean_inter_arrival_ticks": 3.6,
+  "std_inter_arrival_ticks": 0.072,
+  "demand_profile": [
+    { "from_tick":    0, "to_tick":  3600, "rate_multiplier": 1.0 },
+    { "from_tick": 3600, "to_tick":  3960, "rate_multiplier": 5.0 },
+    { "from_tick": 3960, "to_tick": 99999, "rate_multiplier": 1.0 }
+  ],
   "weights": {
     "zara_es":          8.0,
     "zara_fr":          6.0,

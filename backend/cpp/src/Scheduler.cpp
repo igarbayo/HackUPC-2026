@@ -4,6 +4,7 @@ Scheduler::Scheduler(Aisle& aisle, std::vector<Robot>& robots, InputBelt& belt,
                      std::vector<Event>* log)
     : aisle_(aisle), robots_(robots), belt_(belt), eventLog_(log)
 {
+    aisle_.connectBelt(belt_);
     if (log) {
         aisle_.setEventLog(log);
         for (auto& r : robots_) r.setEventLog(log);

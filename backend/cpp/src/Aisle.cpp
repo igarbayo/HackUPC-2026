@@ -77,11 +77,17 @@ void Aisle::ordenarInstrucciones() {
                      });
 }
 
+void Aisle::connectBelt(InputBelt& belt) { belt_ = &belt; }
+
 Aisle::Metadata Aisle::metadata() const { return meta_; }
 Position        Aisle::port()     const { return port_; }
 
 void Aisle::tick() {
     ++currentTick_;
+    if (belt_) {
+        while (belt_->peek() && belt_->peek()->arrivalTick() <= currentTick_)
+            input(std::move(*belt_->pop()));
+    }
     ordenarInstrucciones();
     for (auto& shuttle : shuttles_) shuttle.tick(*this);
     assignInstructions();
@@ -118,10 +124,13 @@ void Aisle::notifyOutputReady(Box b) {
 }
 
 std::optional<Box> Aisle::takeFromInputBuffer() {
-    if (pendingInputBoxes_.empty()) return std::nullopt;
-    Box b = std::move(pendingInputBoxes_.front());
-    pendingInputBoxes_.pop();
-    return b;
+    if (!pendingInputBoxes_.empty()) {
+        Box b = std::move(pendingInputBoxes_.front());
+        pendingInputBoxes_.pop();
+        return b;
+    }
+    if (belt_) return belt_->pop();
+    return std::nullopt;
 }
 
 Slot& Aisle::slotAt(Position pos) {
@@ -185,6 +194,7 @@ void Aisle::assignNextTo(Shuttle& s) {
 
     for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
         if (it->kind == Instruction::Kind::Input) {
+
             if (pendingInputBoxes_.empty()) continue;
             const Family& fam = pendingInputBoxes_.front().family();
 
@@ -222,6 +232,7 @@ void Aisle::assignNextTo(Shuttle& s) {
                 }
             }
             if (!bestPos) continue;
+
 
             Position pickupPos;
             pickupPos.x = port_.x; pickupPos.y = shuttleY;

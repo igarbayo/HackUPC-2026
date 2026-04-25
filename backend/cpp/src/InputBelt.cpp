@@ -19,6 +19,17 @@ BoxGeneratorParams BoxGeneratorParams::fromFile(const std::string& path) {
     if (j.contains("seed"))             p.seed             = j["seed"].get<uint64_t>();
     if (j.contains("weights"))
         p.weights = j["weights"].get<std::unordered_map<Family, double>>();
+    if (j.contains("mean_inter_arrival_ticks")) p.mean_inter_arrival_ticks = j["mean_inter_arrival_ticks"];
+    if (j.contains("std_inter_arrival_ticks"))  p.std_inter_arrival_ticks  = j["std_inter_arrival_ticks"];
+    if (j.contains("demand_profile")) {
+        for (const auto& seg : j["demand_profile"]) {
+            DemandPeriod dp;
+            if (seg.contains("from_tick"))       dp.from_tick       = seg["from_tick"].get<Tick>();
+            if (seg.contains("to_tick"))         dp.to_tick         = seg["to_tick"].get<Tick>();
+            if (seg.contains("rate_multiplier")) dp.rate_multiplier = seg["rate_multiplier"];
+            p.demand_profile.push_back(dp);
+        }
+    }
     return p;
 }
 
@@ -109,14 +120,30 @@ InputBelt InputBelt::generate(const BoxGeneratorParams& p) {
     std::discrete_distribution<int>      dist(probs.begin(), probs.end());
     std::vector<int>                     batch_counter(n_dest, 0);
 
+    const double mu_base    = p.mean_inter_arrival_ticks;
+    const double sigma_base = p.std_inter_arrival_ticks;
+
+    auto multiplierAt = [&](Tick t) -> double {
+        for (const auto& seg : p.demand_profile)
+            if (t >= seg.from_tick && t < seg.to_tick)
+                return seg.rate_multiplier;
+        return 1.0;
+    };
+
+    std::normal_distribution<double> arrivalDist(0.0, 1.0);
+    Tick cumTick = 0;
+
     InputBelt belt;
     for (int i = 0; i < p.num_boxes; ++i) {
-        int         idx    = dist(rng);
-        const auto& entry  = table[idx];
-        int         bulk   = ++batch_counter[idx];
-        // ID = source(7) + dest_code(8) + bulk(5) = 20 chars
+        double k      = multiplierAt(cumTick);
+        double sample = std::max(0.0, mu_base / k + (sigma_base / k) * arrivalDist(rng));
+        cumTick      += static_cast<Tick>(std::llround(sample));
+
+        int         idx   = dist(rng);
+        const auto& entry = table[idx];
+        int         bulk  = ++batch_counter[idx];
         BoxId id = "3010028" + entry.dest_code + fmtBulk(bulk);
-        belt.push(Box(id, entry.name, Tick{0}));
+        belt.push(Box(id, entry.name, cumTick));
     }
     return belt;
 }
