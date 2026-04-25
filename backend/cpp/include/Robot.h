@@ -3,7 +3,9 @@
 #include "Box.h"
 #include "Pallet.h"
 #include "Aisle.h"
+#include "Heuristic.h"
 #include <array>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -29,18 +31,19 @@ public:
     void    setEventLog(std::vector<Event>* log);
     void    setCurrentTick(Tick t);
     void    setRobotId(int id);
+    void    setHeuristic(std::shared_ptr<RobotHeuristic> h);
 
 private:
     std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS> pallets_{};
-    Aisle::Metadata     lastMeta_{};           // snapshot from last tick, used in onBoxDelivered
-    std::vector<Event>* eventLog_           = nullptr;
-    Tick                currentTick_        = 0;
-    int                 robotId_            = 0;
+    Aisle::Metadata                lastMeta_{};
+    std::vector<Event>*            eventLog_   = nullptr;
+    Tick                           currentTick_ = 0;
+    int                            robotId_    = 0;
+    std::shared_ptr<RobotHeuristic> heuristic_ = std::make_shared<StockProximityHeuristic>();
 
-    int   findPalletSlot(const Family& f) const;      // -1 if not found
-    int   findEmptyPalletSlot() const;                 // -1 if all occupied
+    int   findPalletSlot(const Family& f) const;
+    int   findEmptyPalletSlot() const;
     int   countEmptyPalletSlots() const;
-    int   findLeastCompletablePalletSlot() const;      // for forced dispatch
+    int   findLeastCompletablePalletSlot() const;
     int   getInFlight(const Aisle::Metadata& meta, const Family& f) const;
-    float scoreFamilyForNewPallet(const Family& f, const Aisle::Metadata& meta) const;
 };

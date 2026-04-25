@@ -36,7 +36,7 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
 
         if (available < OPEN_THRESHOLD) continue;
 
-        candidates.push_back({family, scoreFamilyForNewPallet(family, meta), available});
+        candidates.push_back({family, heuristic_->score(family, meta), available});
     }
 
     // Fallback: if no family passed the threshold but boxes exist, bypass it.
@@ -47,7 +47,7 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
             if (count == 0) continue;
             int available = count - getInFlight(meta, family);
             if (available <= 0) continue;
-            candidates.push_back({family, scoreFamilyForNewPallet(family, meta), available});
+            candidates.push_back({family, heuristic_->score(family, meta), available});
         }
     }
 
@@ -135,9 +135,10 @@ const std::array<std::optional<Pallet>, Robot::MAX_ACTIVE_PALLETS>& Robot::palle
     return pallets_;
 }
 
-void Robot::setEventLog(std::vector<Event>* log) { eventLog_ = log; }
-void Robot::setCurrentTick(Tick t)               { currentTick_ = t; }
-void Robot::setRobotId(int id)                   { robotId_ = id; }
+void Robot::setEventLog(std::vector<Event>* log)            { eventLog_ = log; }
+void Robot::setCurrentTick(Tick t)                          { currentTick_ = t; }
+void Robot::setRobotId(int id)                              { robotId_ = id; }
+void Robot::setHeuristic(std::shared_ptr<RobotHeuristic> h) { heuristic_ = std::move(h); }
 
 // ── onBoxDelivered ────────────────────────────────────────────────────────────
 
@@ -226,17 +227,3 @@ int Robot::getInFlight(const Aisle::Metadata& meta, const Family& f) const {
     return it != meta.reservedByFamily.end() ? it->second : 0;
 }
 
-// score = available / (avgDist + 1): prefer families with many nearby boxes.
-float Robot::scoreFamilyForNewPallet(const Family& f, const Aisle::Metadata& meta) const {
-    auto cit = meta.countByFamily.find(f);
-    int available = (cit != meta.countByFamily.end())
-                  ? cit->second - getInFlight(meta, f)
-                  : 0;
-
-    float avgDist = 1.0f;
-    auto dit = meta.avgDistanceByFamily.find(f);
-    if (dit != meta.avgDistanceByFamily.end() && dit->second > 0.0f)
-        avgDist = dit->second;
-
-    return static_cast<float>(available) / (avgDist + 1.0f);
-}

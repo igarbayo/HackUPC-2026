@@ -21,6 +21,9 @@ set(CORE_SOURCES
 # ── standalone demo executable ───────────────────────────────────────────────
 add_executable(silos ${CORE_SOURCES} src/main.cpp)
 
+# ── benchmark binary ─────────────────────────────────────────────────────────
+add_executable(bench ${CORE_SOURCES} src/benchmark.cpp src/benchmark_main.cpp)
+
 # ── unit tests ────────────────────────────────────────────────────────────────
 add_executable(test_aisle          ${CORE_SOURCES} tests/test_aisle.cpp)
 add_executable(test_aisle_heuristic ${CORE_SOURCES} tests/test_aisle_heuristic.cpp)

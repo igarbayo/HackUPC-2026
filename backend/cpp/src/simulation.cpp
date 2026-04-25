@@ -1,5 +1,6 @@
 #include "simulation.h"
 #include "Aisle.h"
+#include "Heuristic.h"
 #include "Robot.h"
 #include "InputBelt.h"
 #include "Scheduler.h"
@@ -7,15 +8,18 @@
 std::vector<Event> run_simulation(const Params& p) {
     std::vector<Event> log;
 
-    // Inicializamos la cinta
     InputBelt belt;
-    for (const auto& b : p.boxes) belt.push(b);
+    for (const auto& b : p.boxes)
+        if (b.arrivalTick() <= p.input_phase_ticks) belt.push(b);
 
     // Inicializamos el aisle y el scheduler
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
-    for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
+    for (int i = 0; i < (int)robots.size(); ++i) {
+        robots[i].setRobotId(i);
+        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+    }
     Scheduler          scheduler(aisle, robots, belt, &log);
 
     for (int t = 0; t < p.max_ticks; ++t) {
@@ -38,12 +42,16 @@ SimulationResult run_simulation_with_state(const Params& p) {
     SimulationResult result;
 
     InputBelt belt;
-    for (const auto& b : p.boxes) belt.push(b);
+    for (const auto& b : p.boxes)
+        if (b.arrivalTick() <= p.input_phase_ticks) belt.push(b);
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
-    for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
+    for (int i = 0; i < (int)robots.size(); ++i) {
+        robots[i].setRobotId(i);
+        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+    }
     Scheduler          scheduler(aisle, robots, belt, &result.events);
 
     for (int t = 0; t < p.max_ticks; ++t) {
@@ -85,12 +93,16 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
     std::vector<Event> events;
 
     InputBelt belt;
-    for (const auto& b : p.boxes) belt.push(b);
+    for (const auto& b : p.boxes)
+        if (b.arrivalTick() <= p.input_phase_ticks) belt.push(b);
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
-    for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
+    for (int i = 0; i < (int)robots.size(); ++i) {
+        robots[i].setRobotId(i);
+        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+    }
     Scheduler          scheduler(aisle, robots, belt, &events);
 
     std::size_t event_cursor = 0;

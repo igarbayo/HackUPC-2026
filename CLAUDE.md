@@ -46,15 +46,25 @@ cd backend/cpp
 /usr/bin/cmake --build build
 ```
 
+This produces two binaries:
+- `./backend/cpp/build/silos` — interactive demo
+- `./backend/cpp/build/bench` — benchmark runner
+
 Run the demo:
 ```bash
 ./backend/cpp/build/silos
 ```
 
-Direct compile (no CMake):
+Run the benchmark and print a comparison table:
 ```bash
 cd backend/cpp
-g++ -std=c++17 -Iinclude src/*.cpp src/simulation.cpp -o build/silos
+./build/bench | python3 benchmark/compare.py
+```
+
+Save results to a file:
+```bash
+./build/bench > results.json
+python3 benchmark/compare.py results.json
 ```
 
 Requires C++17: GCC 8+, Clang 7+, or MSVC 2017+.

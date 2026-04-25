@@ -2,14 +2,19 @@
 #include "types.h"
 #include "Box.h"
 #include "SnapshotQueue.h"
+#include <cstdint>
+#include <string>
 #include <vector>
 
 struct Params {
     std::vector<Box> boxes;
-    int num_slots    = 20;
-    int num_y        = 2;   // height levels; one shuttle per level
-    int num_sides    = 1;   // 1=Left only, 2=Left+Right
-    int max_ticks    = 10000;
+    int  num_slots         = 20;
+    int  num_y             = 2;          // height levels; one shuttle per level
+    int  num_sides         = 1;          // 1=Left only, 2=Left+Right
+    int  max_ticks         = 10000;
+    Tick        input_phase_ticks = UINT64_MAX;       // belt stops after this tick; drain continues
+    std::string heuristic_name   = "stock_proximity"; // robot scoring heuristic
+    uint64_t    heuristic_seed   = 42;                // seed forwarded to RandomHeuristic
 };
 
 // Run the full simulation and return the complete event log.
