@@ -284,8 +284,8 @@ std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position s
 //   W4 * shuttleLoad * 10      — heavy penalty when the shuttle is already busy (avoid contention).
 // Returns nullopt if no free z1 slot exists at row y.
 // Called by: Aisle::assignNextTo (Aisle.cpp:331).
-std::optional<Position> Aisle::findBestInputSlot(const Box& box, int y) const {
-    if (y < 1 || y > numY_) return std::nullopt;
+std::pair<int, std::optional<Position>> Aisle::findBestInputSlot(const Box& box, int y) const {
+    if (y < 1 || y > numY_) return {INT_MAX, std::nullopt};
 
     constexpr int W1 = 1, W2 = 1, W3 = 1, W4 = 10;
     constexpr int LOAD_CONSTANT = 10;
@@ -332,7 +332,7 @@ std::optional<Position> Aisle::findBestInputSlot(const Box& box, int y) const {
             }
         }
     }
-    return best;
+    return {bestCost, best};
 }
 
 // Assigns the first viable pending instruction to shuttle s.
@@ -347,7 +347,7 @@ void Aisle::assignNextTo(Shuttle& s) {
         if (it->kind == Instruction::Kind::Input) {
 
             if (pendingInputBoxes_.empty()) continue;
-            auto freePos = findBestInputSlot(pendingInputBoxes_.front(), shuttleY);
+            auto [slotCost, freePos] = findBestInputSlot(pendingInputBoxes_.front(), shuttleY);
             if (!freePos) continue;
 
             claimedInputSlots_[{freePos->side, freePos->y}].insert(freePos->x);
@@ -447,7 +447,7 @@ void Aisle::assignInstructions() {
     // Input pass: assign to any free shuttle.
     for (auto& shuttle : shuttles_) {
         if (!shuttle.isFree() || pendingInputBoxes_.empty()) continue;
-        auto freePos = findBestInputSlot(pendingInputBoxes_.front(), shuttle.yLevel());
+        auto [slotCost, freePos] = findBestInputSlot(pendingInputBoxes_.front(), shuttle.yLevel());
         if (!freePos) continue;
         for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
             if (it->kind == Instruction::Kind::Input) {

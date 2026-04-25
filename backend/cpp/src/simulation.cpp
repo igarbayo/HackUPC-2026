@@ -1,5 +1,5 @@
 #include "simulation.h"
-#include "Aisle.h"
+#include "AisleContainer.h"
 #include "Robot.h"
 #include "InputBelt.h"
 #include "Scheduler.h"
@@ -7,21 +7,19 @@
 std::vector<Event> run_simulation(const Params& p) {
     std::vector<Event> log;
 
-    // Inicializamos la cinta
     InputBelt belt;
     for (const auto& b : p.boxes) belt.push(b);
 
-    // Inicializamos el aisle y el scheduler
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
+    AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
-    Scheduler          scheduler(aisle, robots, belt, &log);
+    Scheduler          scheduler(container, robots, belt, &log);
 
     for (int t = 0; t < p.max_ticks; ++t) {
         scheduler.activate();
 
-        const auto meta = aisle.metadata();
+        const auto meta = container.metadata();
         const bool done = belt.empty()
                        && meta.pendingInputs    == 0
                        && meta.pendingOutputs   == 0
@@ -41,17 +39,18 @@ SimulationResult run_simulation_with_state(const Params& p) {
     for (const auto& b : p.boxes) belt.push(b);
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
+    AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
-    Scheduler          scheduler(aisle, robots, belt, &result.events);
+    Scheduler          scheduler(container, robots, belt, &result.events);
 
     for (int t = 0; t < p.max_ticks; ++t) {
         scheduler.activate();
 
         TickSnapshot snap;
         snap.tick  = scheduler.currentTick();
-        snap.aisles.push_back(aisle.snapshot());
+
+        snap.aisles.push_back(container.snapshot());
 
         const auto& pallets = robots[0].pallets();
         for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
@@ -68,7 +67,7 @@ SimulationResult run_simulation_with_state(const Params& p) {
         }
         result.snapshots.push_back(std::move(snap));
 
-        const auto meta = aisle.metadata();
+        const auto meta = container.metadata();
         const bool done = belt.empty()
                        && meta.pendingInputs    == 0
                        && meta.pendingOutputs   == 0
@@ -88,10 +87,10 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
     for (const auto& b : p.boxes) belt.push(b);
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle              aisle(p.num_slots, p.num_y, p.num_sides, port);
+    AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
-    Scheduler          scheduler(aisle, robots, belt, &events);
+    Scheduler          scheduler(container, robots, belt, &events);
 
     std::size_t event_cursor = 0;
 
@@ -100,9 +99,8 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
         TickSnapshot snap;
         snap.tick  = scheduler.currentTick();
-        snap.aisles.push_back(aisle.snapshot());
+        snap.aisles.push_back(container.snapshot());
 
-        // Carry events emitted during this tick
         for (std::size_t i = event_cursor; i < events.size(); ++i)
             snap.events.push_back(events[i]);
         event_cursor = events.size();
@@ -122,7 +120,7 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
         }
         queue.push(std::move(snap));
 
-        const auto meta = aisle.metadata();
+        const auto meta = container.metadata();
         const bool done = belt.empty()
                        && meta.pendingInputs    == 0
                        && meta.pendingOutputs   == 0
@@ -131,7 +129,6 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
         if (done) break;
     }
 
-    // Final sentinel snapshot carries the "done" event
     events.push_back({"done", scheduler.currentTick(), {}, -1, {}});
     TickSnapshot done_snap;
     done_snap.tick = scheduler.currentTick();

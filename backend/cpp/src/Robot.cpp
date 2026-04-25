@@ -66,15 +66,15 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
 
 // ── tick ──────────────────────────────────────────────────────────────────────
 
-void Robot::tick(Aisle& aisle) {
+void Robot::tick(AisleContainer& container) {
     // Snapshot metadata before collecting so onBoxDelivered has it for eviction
-    lastMeta_ = aisle.metadata();
+    lastMeta_ = container.metadata();
 
     // 1. Collect ready outputs
     for (auto& palletOpt : pallets_) {
         if (!palletOpt) continue;
         Family fam = palletOpt->family();
-        while (auto boxOpt = aisle.collectReadyOutput(fam)) {
+        while (auto boxOpt = container.collectReadyOutput(fam)) {
             onBoxDelivered(*boxOpt);
         }
     }
@@ -83,7 +83,7 @@ void Robot::tick(Aisle& aisle) {
     //     Without this, a pallet can block a slot forever if the aisle filled up with
     //     other families and all boxes of this family were already collected.
     {
-        const auto metaPost = aisle.metadata();
+        const auto metaPost = container.metadata();
         for (int i = 0; i < MAX_ACTIVE_PALLETS; ++i) {
             if (!pallets_[i]) continue;
             Family f = pallets_[i]->family();
@@ -100,7 +100,7 @@ void Robot::tick(Aisle& aisle) {
     }
 
     // 2. Drain check: if aisle is truly empty, ship everything and stop
-    const auto meta = aisle.metadata();
+    const auto meta = container.metadata();
     bool aisleEmpty = meta.countByFamily.empty()
                    && meta.pendingInputs  == 0
                    && meta.activeShuttles == 0
@@ -123,7 +123,7 @@ void Robot::tick(Aisle& aisle) {
             }
             if (slot != -1 && pallets_[slot]->freeSlots() > 0) {
                 pallets_[slot]->reserve();
-                aisle.requestOutput(family);
+                container.requestOutput(family);
             }
         }
     }

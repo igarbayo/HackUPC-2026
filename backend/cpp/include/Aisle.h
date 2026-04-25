@@ -75,7 +75,8 @@ public:
     std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
 
     // Find best free slot at level y for input placement using numeric cost function.
-    std::optional<Position> findBestInputSlot(const Box& box, int y) const;
+    // Returns {cost, position}; cost is INT_MAX and position is nullopt if no slot exists.
+    std::pair<int, std::optional<Position>> findBestInputSlot(const Box& box, int y) const;
 
     // Find nearest stored box of family f at Y level y, skipping claimed slots.
     std::optional<Position> findNearestWithFamily(const Family& f, int y) const;

@@ -127,7 +127,7 @@ void test_same_family_same_pallet() {
 void test_tick_integration_with_aisle() {
     // Small aisle: 5 storage slots, 1 Y level, 1 side, port at x=-1
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(5, 1, 1, port);
+    AisleContainer aisle(1, 5, 1, 1, port);
 
     std::vector<Event> log;
     aisle.setEventLog(&log);
@@ -187,7 +187,7 @@ void test_drain_dispatch_on_empty_aisle() {
 
     // Aisle with 1 shuttle; send exactly OPEN_THRESHOLD boxes then let it drain
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(10, 1, 1, port);
+    AisleContainer aisle(1, 10, 1, 1, port);
     aisle.setEventLog(&log);
 
     Robot robot;
@@ -294,7 +294,7 @@ void test_threshold_blocks_high_score_low_count_family() {
 // B (placed=2, inAisle=0 → score=2) becomes the eviction target instead.
 void test_eviction_uses_aisle_metadata() {
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(20, 1, 1, port);
+    AisleContainer aisle(1, 20, 1, 1, port);
     Robot robot;
 
     // Fill all 4 pallet slots: A=1 box, B=2, C=3, D=3
@@ -371,7 +371,7 @@ void test_exhausted_families_dispatched_on_tick() {
     std::vector<Event> log;
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(20, 1, 1, port);
+    AisleContainer aisle(1, 20, 1, 1, port);
     aisle.setEventLog(&log);
 
     // Store enough X boxes so robot will open a pallet for X after dispatch

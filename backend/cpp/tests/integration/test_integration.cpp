@@ -157,7 +157,7 @@ void test_stored_boxes_retrieved_nearest_first() {
 //   - Event sequence: box_stored precedes box_on_pallet.
 void test_full_pipeline_dominant_family_fills_pallet() {
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(20, 1, 1, port);
+    AisleContainer aisle(1, 20, 1, 1, port);
     Robot robot;
 
     std::vector<Event> log;
@@ -197,7 +197,7 @@ void test_full_pipeline_dominant_family_fills_pallet() {
 //   box_stored → box_on_pallet (×CAPACITY, all family A) → pallet_dispatched
 void test_full_pipeline_event_order_on_dispatch() {
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
-    Aisle aisle(20, 1, 1, port);
+    AisleContainer aisle(1, 20, 1, 1, port);
     Robot robot;
 
     std::vector<Event> log;

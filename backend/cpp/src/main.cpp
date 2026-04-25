@@ -13,9 +13,11 @@ int main(int argc, char* argv[]) {
     InputBelt belt = InputBelt::generate(gen);
 
     Params p;
-    p.num_slots    = 60;
-    p.num_y        = 8;
-    p.num_sides    = 2;
+
+    p.num_aisles   = 4;
+    p.num_slots    = 20;
+    p.num_y        = 2;
+    p.num_sides    = 1;
     p.max_ticks    = 10000;
 
     while (auto b = belt.pop()) p.boxes.push_back(*b);

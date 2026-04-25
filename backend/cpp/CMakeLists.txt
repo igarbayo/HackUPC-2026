@@ -12,6 +12,7 @@ set(CORE_SOURCES
     src/Pallet.cpp
     src/Shuttle.cpp
     src/Aisle.cpp
+    src/AisleContainer.cpp
     src/Robot.cpp
     src/InputBelt.cpp
     src/Scheduler.cpp
@@ -30,6 +31,9 @@ add_executable(test_robot          ${CORE_SOURCES} tests/test_robot.cpp)
 # ── integration tests ─────────────────────────────────────────────────────────
 add_executable(test_integration           ${CORE_SOURCES} tests/integration/test_integration.cpp)
 add_executable(test_integration_retrieval ${CORE_SOURCES} tests/integration/test_integration_retrieval.cpp)
+
+# ── AisleContainer routing tests (findBestInputSlot cost + multi-aisle routing) ─
+add_executable(test_aisle_container ${CORE_SOURCES} tests/test_aisle_container.cpp)
 
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>

@@ -2,7 +2,7 @@
 #include "types.h"
 #include "Box.h"
 #include "Pallet.h"
-#include "Aisle.h"
+#include "AisleContainer.h"
 #include <array>
 #include <optional>
 #include <unordered_map>
@@ -19,7 +19,7 @@ public:
     // Reads metadata, decides which families to request output for and how many.
     Request decide(const Aisle::Metadata& meta);
     // Full tick: collect ready outputs, decide, make requests.
-    void    tick(Aisle& aisle);
+    void    tick(AisleContainer& container);
 
     const std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS>& pallets() const;
 
