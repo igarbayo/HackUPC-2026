@@ -37,6 +37,9 @@ add_executable(test_metadata_update ${CORE_SOURCES} tests/test_metadata_update.c
 # ── aisle output tests  ───────────────────
 add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
 
+# ── integration: retrieval sequence B, A, A ──────────────────────────────────
+add_executable(test_integration_retrieval ${CORE_SOURCES} tests/integration/test_integration_retrieval.cpp)
+
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
     $<$<CXX_COMPILER_ID:MSVC>:/W4>

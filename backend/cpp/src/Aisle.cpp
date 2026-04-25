@@ -4,6 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
+// Constructor
 Aisle::Aisle(int length, int numY, int numSides, Position port)
     : length_(length), numY_(numY), numSides_(numSides), port_(port)
 {
