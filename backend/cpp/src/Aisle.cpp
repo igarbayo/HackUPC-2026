@@ -35,22 +35,27 @@ Aisle::Aisle(int length, int numY, int numSides, Position port)
 
 // Inserts new box in pendingInputBoxes and instruction on intructionQueue
 void Aisle::input(Box newBox) {
-    pendingInputBoxes_.push(std::move(newBox));
     Instruction instr;
     instr.kind     = Instruction::Kind::Input;
+    instr.box_id   = newBox.id();
+    instr.family   = newBox.family();
     instr.issuedAt = currentTick_;
     instr.priority = 0;
+    instr.seq      = nextSeq_++;
+    pendingInputBoxes_.push(std::move(newBox));
     instructionQueue_.push_back(std::move(instr));
     updateMeta();
 }
 
-// Requests a box from family f 
+// Requests a box from family f
 void Aisle::requestOutput(Family f) {
     Instruction instr;
     instr.kind         = Instruction::Kind::Output;
     instr.requestedFam = f;
+    instr.family       = f;
     instr.issuedAt     = currentTick_;
     instr.priority     = 0;
+    instr.seq          = nextSeq_++;
     instructionQueue_.push_back(std::move(instr));
     outputReservedByFamily_[f]++;
     updateMeta();
@@ -524,6 +529,8 @@ const std::vector<Shuttle>& Aisle::shuttles() const { return shuttles_; }
 
 AisleSnap Aisle::snapshot() const {
     AisleSnap snap;
+    snap.aisle_id = 0;
+
     for (const auto& shuttle : shuttles_) {
         ShuttleSnap ss;
         ss.y_level  = shuttle.yLevel();
@@ -553,5 +560,31 @@ AisleSnap Aisle::snapshot() const {
         }
         snap.shuttles.push_back(std::move(ss));
     }
+
+    // pending_sorted: instructionQueue_ is already sorted by ordenarInstrucciones()
+    for (const auto& instr : instructionQueue_) {
+        InstructionSnap is;
+        is.kind      = (instr.kind == Instruction::Kind::Input) ? "Input" : "Output";
+        is.family    = instr.family;
+        is.box_id    = instr.box_id;
+        is.issued_at = instr.issuedAt;
+        is.priority  = instr.priority;
+        is.seq       = instr.seq;
+        if (instr.kind == Instruction::Kind::Input) {
+            is.target = port_;
+        } else if (instr.requestedFam) {
+            auto it = meta_.nearestByFamily.find(*instr.requestedFam);
+            is.target = (it != meta_.nearestByFamily.end()) ? it->second : port_;
+        } else {
+            is.target = port_;
+        }
+        snap.pending_sorted.push_back(is);
+    }
+
+    // pending_fifo: same set, sorted by arrival sequence
+    snap.pending_fifo = snap.pending_sorted;
+    std::sort(snap.pending_fifo.begin(), snap.pending_fifo.end(),
+              [](const InstructionSnap& a, const InstructionSnap& b) { return a.seq < b.seq; });
+
     return snap;
 }

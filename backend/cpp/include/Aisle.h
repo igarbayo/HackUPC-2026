@@ -30,8 +30,11 @@ public:
         enum class Kind { Input, Output };
         Kind                  kind;
         std::optional<Family> requestedFam;  // for Output
+        std::string           box_id;        // for Input: specific box id
+        Family                family;        // family for both kinds
         Tick                  issuedAt = 0;
         int                   priority = 0;
+        int                   seq      = 0;  // arrival sequence number
     };
 
     // length: X storage slots (0..length-1).
@@ -88,6 +91,7 @@ private:
 
     std::vector<Shuttle>     shuttles_;         // one per Y level (shuttles_[y-1])
     std::vector<Instruction> instructionQueue_;
+    int                      nextSeq_ = 0;
     Tick                     currentTick_ = 0;
     Metadata                 meta_;
 

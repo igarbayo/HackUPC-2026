@@ -51,8 +51,21 @@ struct ShuttleSnap {
     std::vector<BoxSnap> floor_boxes;
 };
 
+struct InstructionSnap {
+    std::string kind;       // "Input" | "Output"
+    std::string family;
+    std::string box_id;     // input: specific box id; output: ""
+    uint64_t    issued_at = 0;
+    int         priority  = 0;
+    int         seq       = 0;
+    Position    target;     // input: port position; output: nearestByFamily pos
+};
+
 struct AisleSnap {
-    std::vector<ShuttleSnap> shuttles;
+    int aisle_id = 0;
+    std::vector<ShuttleSnap>     shuttles;
+    std::vector<InstructionSnap> pending_fifo;    // sorted by seq (arrival order)
+    std::vector<InstructionSnap> pending_sorted;  // current SSTF priority order
 };
 
 struct PalletSnap {
@@ -64,8 +77,8 @@ struct PalletSnap {
 };
 
 struct TickSnapshot {
-    Tick     tick = 0;
-    AisleSnap aisle;
+    Tick tick = 0;
+    std::vector<AisleSnap>  aisles;   // one entry per aisle
     std::vector<PalletSnap> pallets;
-    std::vector<Event> events;  // events emitted during this tick; last snap carries "done"
+    std::vector<Event>      events;   // events emitted during this tick; last snap carries "done"
 };

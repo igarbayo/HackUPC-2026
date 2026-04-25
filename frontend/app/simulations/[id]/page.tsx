@@ -5,9 +5,9 @@ import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { FF, T } from '@/lib/tokens'
 import { useSimulationStream } from '@/lib/SimulationStreamContext'
-import type { StreamStatus } from '@/lib/SimulationStreamContext'
+import type { StreamStatus, InstructionState } from '@/lib/SimulationStreamContext'
 
-type Tab = 'warehouse' | 'aisle' | 'shuttle'
+type Tab = 'warehouse' | 'aisle' | 'shuttle' | 'simulation'
 type WsStatus = StreamStatus
 
 // ── Constants ──────────────────────────────────────────────────────────
@@ -15,9 +15,10 @@ type WsStatus = StreamStatus
 const PALLET_CAPACITY = 12
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'warehouse', label: 'Warehouse' },
-  { id: 'aisle',     label: 'Aisle'     },
-  { id: 'shuttle',   label: 'Shuttle'   },
+  { id: 'warehouse',  label: 'Warehouse'  },
+  { id: 'aisle',      label: 'Aisle'      },
+  { id: 'shuttle',    label: 'Shuttle'    },
+  { id: 'simulation', label: 'Simulation' },
 ]
 
 const STATUS_LABEL: Record<WsStatus, string> = {
@@ -53,6 +54,7 @@ function Metric({ label, value, unit }: { label: string; value: number | null; u
 export default function SimulationVisualizePage() {
   const { id }           = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<Tab>('warehouse')
+  const [selectedAisle, setSelectedAisle] = useState(0)
   const { streams, setSpeed } = useSimulationStream()
   const stream = streams[id] ?? { status: 'connecting' as WsStatus, snapshot: null, totalTicks: null, speed: 1 }
 
@@ -63,7 +65,7 @@ export default function SimulationVisualizePage() {
   // ── Computed values ────────────────────────────────────────────────────
   const { status: wsStatus, snapshot, totalTicks, speed } = stream
   const pallets      = snapshot?.robot.pallets ?? []
-  const shuttles     = snapshot?.aisle.shuttles ?? []
+  const shuttles     = snapshot?.aisles[selectedAisle]?.shuttles ?? []
   const busyShuttles = shuttles.filter(s => s.phase !== 'Idle').length
   const avgFill = pallets.length > 0
     ? Math.round(pallets.reduce((sum, p) => sum + p.placed_count, 0) / pallets.length / PALLET_CAPACITY * 100)
@@ -167,10 +169,136 @@ export default function SimulationVisualizePage() {
     )
   }
 
+  function renderInstructionTable(instrs: InstructionState[], title: string) {
+    return (
+      <div>
+        <div style={{ ...T.label, marginBottom: 10 }}>{title}</div>
+        {instrs.length === 0 ? (
+          <div style={{ ...T.micro, color: '#bbb' }}>No pending instructions</div>
+        ) : (
+          <>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '36px 52px 52px 1fr 1fr 80px 52px',
+              gap: 10, marginBottom: 6,
+            }}>
+              {['Seq', 'Tick', 'Kind', 'Family', 'Box ID', 'Target', 'Priority'].map(h => (
+                <div key={h} style={T.label}>{h}</div>
+              ))}
+            </div>
+            {instrs.map((instr, i) => (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '36px 52px 52px 1fr 1fr 80px 52px',
+                gap: 10, padding: '6px 0', borderBottom: '1px solid #f4f4f4',
+                alignItems: 'center',
+              }}>
+                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.seq}</div>
+                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.issued_at}</div>
+                <div style={{
+                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                  color: instr.kind === 'Input' ? '#000' : '#555',
+                }}>
+                  {instr.kind === 'Input' ? 'IN' : 'OUT'}
+                </div>
+                <div style={{ fontSize: 11, color: '#000', fontFamily: FF }}>{instr.family}</div>
+                <div style={{ fontSize: 10, color: instr.box_id ? '#000' : '#ccc', fontFamily: FF }}>
+                  {instr.box_id ? instr.box_id.slice(-8) : '—'}
+                </div>
+                <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>
+                  x={instr.target.x},z={instr.target.z}
+                </div>
+                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.priority}</div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  function renderSimulation() {
+    if (!snapshot) return <div style={T.label}>Waiting for data...</div>
+    const aisleList = snapshot.aisles
+    const aisle     = aisleList[selectedAisle]
+    const activeMissions = (aisle?.shuttles ?? []).filter(s => s.phase !== 'Idle')
+
+    return (
+      <div>
+        {/* Aisle selector */}
+        {aisleList.length > 1 && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {aisleList.map((a, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedAisle(idx)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '4px 12px',
+                  fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
+                  fontFamily: FF,
+                  color: selectedAisle === idx ? '#000' : '#bbb',
+                  borderBottom: selectedAisle === idx ? '1px solid #000' : '1px solid transparent',
+                }}
+              >
+                Aisle #{a.aisle_id}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Two instruction queue tables */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 32 }}>
+          {renderInstructionTable(aisle?.pending_fifo ?? [], 'Arrival Order')}
+          {renderInstructionTable(aisle?.pending_sorted ?? [], 'Priority Order')}
+        </div>
+
+        {/* Active missions */}
+        <div style={{ ...T.label, marginBottom: 10 }}>Active Missions</div>
+        {activeMissions.length === 0 ? (
+          <div style={{ ...T.micro, color: '#bbb' }}>No active missions</div>
+        ) : (
+          <>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '60px 140px 1fr 80px 80px',
+              gap: 12, marginBottom: 6,
+            }}>
+              {['Shuttle', 'Phase', 'Box ID', 'Family', 'Pos (x,z)'].map(h => (
+                <div key={h} style={T.label}>{h}</div>
+              ))}
+            </div>
+            {activeMissions.map((s, i) => (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '60px 140px 1fr 80px 80px',
+                gap: 12, padding: '6px 0', borderBottom: '1px solid #f4f4f4',
+                alignItems: 'center',
+              }}>
+                <div style={{ fontSize: 11, color: '#000', fontFamily: FF }}>Y={s.y_level}</div>
+                <div style={{
+                  fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#000',
+                }}>
+                  {s.phase}
+                </div>
+                <div style={{ fontSize: 10, color: s.is_carrying ? '#000' : '#ccc', fontFamily: FF }}>
+                  {s.is_carrying ? s.carried_box_id.slice(-8) : '—'}
+                </div>
+                <div style={{ fontSize: 11, color: '#000', fontFamily: FF }}>
+                  {s.is_carrying ? s.carried_box_family : '—'}
+                </div>
+                <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>
+                  x={s.position.x},z={s.position.z}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    )
+  }
+
   const TAB_RENDER: Record<Tab, () => React.ReactNode> = {
-    warehouse: renderWarehouse,
-    aisle:     renderAisle,
-    shuttle:   renderShuttle,
+    warehouse:  renderWarehouse,
+    aisle:      renderAisle,
+    shuttle:    renderShuttle,
+    simulation: renderSimulation,
   }
 
   return (

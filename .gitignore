@@ -44,3 +44,8 @@ frontend/.env*.local
 # Backend env
 backend/python/.env
 
+# Python
+backend/python/.venv/
+backend/python/__pycache__/
+backend/python/routers/__pycache__/
+

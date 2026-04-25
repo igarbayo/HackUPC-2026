@@ -28,8 +28,21 @@ class ShuttleStateModel(BaseModel):
     floor_boxes: list[BoxModel]
 
 
+class InstructionModel(BaseModel):
+    kind: str
+    family: str
+    box_id: str
+    issued_at: int
+    priority: int
+    seq: int
+    target: PositionModel
+
+
 class AisleStateModel(BaseModel):
+    aisle_id: int
     shuttles: list[ShuttleStateModel]
+    pending_fifo: list[InstructionModel]
+    pending_sorted: list[InstructionModel]
 
 
 class PalletStateModel(BaseModel):
@@ -46,7 +59,7 @@ class RobotStateModel(BaseModel):
 
 class TickStateModel(BaseModel):
     tick: int
-    aisle: AisleStateModel
+    aisles: list[AisleStateModel]
     robot: RobotStateModel
 
 

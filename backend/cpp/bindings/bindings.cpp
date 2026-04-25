@@ -61,8 +61,20 @@ PYBIND11_MODULE(scheduler_cpp, m) {
         .def_readonly("carried_box_family", &ShuttleSnap::carried_box_family)
         .def_readonly("floor_boxes",        &ShuttleSnap::floor_boxes);
 
+    py::class_<InstructionSnap>(m, "InstructionSnap")
+        .def_readonly("kind",      &InstructionSnap::kind)
+        .def_readonly("family",    &InstructionSnap::family)
+        .def_readonly("box_id",    &InstructionSnap::box_id)
+        .def_readonly("issued_at", &InstructionSnap::issued_at)
+        .def_readonly("priority",  &InstructionSnap::priority)
+        .def_readonly("seq",       &InstructionSnap::seq)
+        .def_readonly("target",    &InstructionSnap::target);
+
     py::class_<AisleSnap>(m, "AisleSnap")
-        .def_readonly("shuttles", &AisleSnap::shuttles);
+        .def_readonly("aisle_id",       &AisleSnap::aisle_id)
+        .def_readonly("shuttles",       &AisleSnap::shuttles)
+        .def_readonly("pending_fifo",   &AisleSnap::pending_fifo)
+        .def_readonly("pending_sorted", &AisleSnap::pending_sorted);
 
     py::class_<PalletSnap>(m, "PalletSnap")
         .def_readonly("slot",           &PalletSnap::slot)
@@ -73,7 +85,7 @@ PYBIND11_MODULE(scheduler_cpp, m) {
 
     py::class_<TickSnapshot>(m, "TickSnapshot")
         .def_readonly("tick",    &TickSnapshot::tick)
-        .def_readonly("aisle",   &TickSnapshot::aisle)
+        .def_readonly("aisles",  &TickSnapshot::aisles)
         .def_readonly("pallets", &TickSnapshot::pallets)
         .def_readonly("events",  &TickSnapshot::events);
 

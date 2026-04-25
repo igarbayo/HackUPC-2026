@@ -51,7 +51,7 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
         TickSnapshot snap;
         snap.tick  = scheduler.currentTick();
-        snap.aisle = aisle.snapshot();
+        snap.aisles.push_back(aisle.snapshot());
 
         const auto& pallets = robots[0].pallets();
         for (int slot = 0; slot < Robot::MAX_ACTIVE_PALLETS; ++slot) {
@@ -100,7 +100,7 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
         TickSnapshot snap;
         snap.tick  = scheduler.currentTick();
-        snap.aisle = aisle.snapshot();
+        snap.aisles.push_back(aisle.snapshot());
 
         // Carry events emitted during this tick
         for (std::size_t i = event_cursor; i < events.size(); ++i)

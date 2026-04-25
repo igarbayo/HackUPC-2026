@@ -15,6 +15,23 @@ export interface ShuttleState {
   carried_box_family: string
 }
 
+export interface InstructionState {
+  kind: string       // "Input" | "Output"
+  family: string
+  box_id: string
+  issued_at: number
+  priority: number
+  seq: number
+  target: Position
+}
+
+export interface AisleState {
+  aisle_id: number
+  shuttles: ShuttleState[]
+  pending_fifo: InstructionState[]
+  pending_sorted: InstructionState[]
+}
+
 export interface PalletState {
   slot: number
   family: string
@@ -24,7 +41,7 @@ export interface PalletState {
 
 export interface TickSnapshot {
   tick: number
-  aisle: { shuttles: ShuttleState[] }
+  aisles: AisleState[]
   robot: { pallets: PalletState[] }
 }
 

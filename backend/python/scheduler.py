@@ -9,6 +9,7 @@ from models import (
     AisleStateModel,
     BoxModel,
     EventModel,
+    InstructionModel,
     PalletStateModel,
     PositionModel,
     RobotStateModel,
@@ -61,19 +62,41 @@ def _to_box_model(b, position=None) -> BoxModel:
     )
 
 
+def _to_instruction_model(instr) -> InstructionModel:
+    return InstructionModel(
+        kind=instr.kind,
+        family=instr.family,
+        box_id=instr.box_id,
+        issued_at=instr.issued_at,
+        priority=instr.priority,
+        seq=instr.seq,
+        target=_to_position(instr.target),
+    )
+
+
 def _snapshot_to_tick_state(snap) -> TickStateModel:
-    shuttles = []
-    for s in snap.aisle.shuttles:
-        floor_boxes = [_to_box_model(b, b.position) for b in s.floor_boxes]
-        shuttles.append(
-            ShuttleStateModel(
-                y_level=s.y_level,
-                position=_to_position(s.position),
-                phase=s.phase,
-                is_carrying=s.is_carrying,
-                carried_box_id=s.carried_box_id,
-                carried_box_family=s.carried_box_family,
-                floor_boxes=floor_boxes,
+    aisles = []
+    for a in snap.aisles:
+        shuttles = []
+        for s in a.shuttles:
+            floor_boxes = [_to_box_model(b, b.position) for b in s.floor_boxes]
+            shuttles.append(
+                ShuttleStateModel(
+                    y_level=s.y_level,
+                    position=_to_position(s.position),
+                    phase=s.phase,
+                    is_carrying=s.is_carrying,
+                    carried_box_id=s.carried_box_id,
+                    carried_box_family=s.carried_box_family,
+                    floor_boxes=floor_boxes,
+                )
+            )
+        aisles.append(
+            AisleStateModel(
+                aisle_id=a.aisle_id,
+                shuttles=shuttles,
+                pending_fifo=[_to_instruction_model(i) for i in a.pending_fifo],
+                pending_sorted=[_to_instruction_model(i) for i in a.pending_sorted],
             )
         )
     pallets = []
@@ -90,7 +113,7 @@ def _snapshot_to_tick_state(snap) -> TickStateModel:
         )
     return TickStateModel(
         tick=snap.tick,
-        aisle=AisleStateModel(shuttles=shuttles),
+        aisles=aisles,
         robot=RobotStateModel(pallets=pallets),
     )
 
