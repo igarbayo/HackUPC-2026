@@ -12,6 +12,8 @@ std::vector<Event> run_simulation(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
     Scheduler          scheduler(container, robots, belt, &log);
@@ -40,6 +42,8 @@ SimulationResult run_simulation_with_state(const Params& p) {
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
     Scheduler          scheduler(container, robots, belt, &result.events);
@@ -88,6 +92,8 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
 
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+    for (const auto& pb : p.initial_boxes)
+        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
     std::vector<Robot> robots(1);
     for (int i = 0; i < (int)robots.size(); ++i) robots[i].setRobotId(i);
     Scheduler          scheduler(container, robots, belt, &events);

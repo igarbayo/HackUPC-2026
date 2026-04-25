@@ -67,6 +67,8 @@ public:
     Slot&               slotAt(Position pos);
     const Slot&         slotAt(Position pos) const;
 
+    void                placeAt(Box box, Position pos);
+
     const std::vector<Shuttle>& shuttles() const;
     AisleSnap           snapshot() const;
 

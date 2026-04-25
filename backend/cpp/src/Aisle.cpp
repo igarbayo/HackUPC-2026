@@ -123,6 +123,20 @@ void Aisle::ordenarInstrucciones() {
 // Composition pattern: sets the belt for de aisle
 void Aisle::connectBelt(InputBelt& belt) { belt_ = &belt; }
 
+void Aisle::placeAt(Box box, Position pos) {
+    if (pos.side < 1 || pos.side > numSides_) return;
+    if (pos.y   < 1 || pos.y   > numY_)      return;
+    if (pos.x   < 0 || pos.x   >= length_)   return;
+    auto& slot = slots_[pos.side - 1][pos.y - 1][pos.x];
+    if (pos.z == 1) {
+        slot.place(std::move(box));
+        freeZ1_[{pos.side, pos.y}].erase(pos.x);
+    } else {
+        slot.placeZ2(std::move(box));
+    }
+    updateMeta();
+}
+
 // Getters
 Aisle::Metadata Aisle::metadata() const { return meta_; }
 Position        Aisle::port()     const { return port_; }
