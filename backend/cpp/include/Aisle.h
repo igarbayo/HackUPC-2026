@@ -16,6 +16,8 @@ public:
         std::unordered_map<Family, int>      countByFamily;
         std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
         std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
+        std::unordered_map<Family, Tick>     oldestArrivalByFamily; // earliest arrivalTick stored per family
+        std::unordered_map<Family, float>    avgDistanceByFamily;   // mean |slot.x - port.x| per family
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;
