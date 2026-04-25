@@ -187,18 +187,46 @@ void Aisle::assignNextTo(Shuttle& s) {
         if (it->kind == Instruction::Kind::Input) {
             if (pendingInputBoxes_.empty()) continue;
             const Family& fam = pendingInputBoxes_.front().family();
-            bool isHot = outputReservedByFamily_.count(fam) &&
-                         outputReservedByFamily_.at(fam) > 0;
-            // Try sides in order; hot→near port, cold→far
-            std::optional<Position> freePos;
-            for (int side = 1; side <= numSides_ && !freePos; ++side)
-                freePos = findFreeSlot(side, shuttleY, isHot);
-            if (!freePos) continue;
+
+            // X_ideal: near port; X_pick: x of nearest existing box of same family
+            const int x_ideal = port_.x;
+            int x_pick = port_.x;
+            auto nearestFam = findNearestWithFamily(fam, shuttleY);
+            if (nearestFam) x_pick = nearestFam->x;
+
+            // Weights from hackupc2.pdf
+            constexpr int W1 = 10, W2 = 1, W3 = 10;
+
+            std::optional<Position> bestPos;
+            int bestCost = INT_MAX;
+
+            for (int side = 1; side <= numSides_; ++side) {
+                LevelKey key{side, shuttleY};
+                auto fit = freeZ1_.find(key);
+                if (fit == freeZ1_.end()) continue;
+                for (int xs : fit->second) {
+                    if (xs == port_.x) continue;
+                    const Slot& slot = slots_[side-1][shuttleY-1][xs];
+                    int penZ;
+                    const Box* z2 = slot.peekZ2();
+                    if      (!z2)                      penZ =  1000;
+                    else if (z2->family() == fam)      penZ = -1000;
+                    else                               penZ =   500;
+                    int cost = W1 * std::abs(xs - x_ideal)
+                             + W2 * penZ
+                             + W3 * std::abs(xs - x_pick);
+                    if (cost < bestCost) {
+                        bestCost = cost;
+                        bestPos  = Position{xs, shuttleY, 1, side};
+                    }
+                }
+            }
+            if (!bestPos) continue;
 
             Position pickupPos;
             pickupPos.x = port_.x; pickupPos.y = shuttleY;
             pickupPos.z = 1;       pickupPos.side = 1;
-            s.assignInputMission(pickupPos, *freePos);
+            s.assignInputMission(pickupPos, *bestPos);
             instructionQueue_.erase(it);
             return;
 
