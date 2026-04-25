@@ -37,6 +37,9 @@ add_executable(test_metadata_update ${CORE_SOURCES} tests/test_metadata_update.c
 # ── aisle output tests  ───────────────────
 add_executable(test_aisle_output ${CORE_SOURCES} tests/test_aisle_output.cpp)
 
+# ── end-to-end integration tests (input heuristic → robot decide → output) ───
+add_executable(test_integration ${CORE_SOURCES} tests/test_integration.cpp)
+
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
     $<$<CXX_COMPILER_ID:MSVC>:/W4>
