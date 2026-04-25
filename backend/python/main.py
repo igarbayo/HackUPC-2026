@@ -10,7 +10,8 @@ app = FastAPI(title="Warehouse Scheduler")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ["FRONTEND_ORIGIN"]],
+    allow_origins=os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000").split(","),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
