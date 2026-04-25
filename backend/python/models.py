@@ -100,9 +100,10 @@ class GeneratorParams(BaseModel):
 
 class SimulationParams(BaseModel):
     num_aisles: int = 1
-    num_slots: int = 4
+    num_slots: int = 10
     num_y: int = 2
-    num_sides: int = 1
+    num_sides: int = 2
+    num_robots: int = 1
     max_ticks: int = 10000
     boxes: Optional[list[BoxInput]] = None
     generator: Optional[GeneratorParams] = None

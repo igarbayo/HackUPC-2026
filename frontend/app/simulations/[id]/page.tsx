@@ -17,9 +17,11 @@ const Warehouse3DView = dynamic(
 type WsStatus = StreamStatus
 
 interface SimParams {
-  num_slots: number
-  num_y: number
-  num_sides: number
+  num_slots:  number
+  num_y:      number
+  num_sides:  number
+  num_aisles: number
+  num_robots: number
 }
 
 // ── Constants ──────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ const STATUS_LABEL: Record<WsStatus, string> = {
 const STATUS_COLOR: Record<WsStatus, string> = {
   connecting: '#f59e0b',
   streaming:  '#f59e0b',
-  done:       '#aaa',
+  done:       '#555',
   error:      '#ef4444',
 }
 
@@ -155,7 +157,7 @@ export default function SimulationVisualizePage() {
             <div style={{ fontSize: 11, color: '#000', fontFamily: FF }}>Y={s.y_level}</div>
             <div style={{
               fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: s.phase === 'Idle' ? '#ccc' : '#000',
+              color: s.phase === 'Idle' ? '#777' : '#000',
             }}>
               {s.phase}
             </div>
@@ -198,7 +200,7 @@ export default function SimulationVisualizePage() {
       <div>
         <div style={{ ...T.label, marginBottom: 10 }}>{title}</div>
         {instrs.length === 0 ? (
-          <div style={{ ...T.micro, color: '#bbb' }}>No pending instructions</div>
+          <div style={{ ...T.micro, color: '#666' }}>No pending instructions</div>
         ) : (
           <>
             <div style={{
@@ -215,8 +217,8 @@ export default function SimulationVisualizePage() {
                 gap: 10, padding: '6px 0', borderBottom: '1px solid #f4f4f4',
                 alignItems: 'center',
               }}>
-                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.seq}</div>
-                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.issued_at}</div>
+                <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>{instr.seq}</div>
+                <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>{instr.issued_at}</div>
                 <div style={{
                   fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
                   color: instr.kind === 'Input' ? '#000' : '#555',
@@ -230,7 +232,7 @@ export default function SimulationVisualizePage() {
                 <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>
                   x={instr.target.x},z={instr.target.z}
                 </div>
-                <div style={{ fontSize: 10, color: '#aaa', fontFamily: FF }}>{instr.priority}</div>
+                <div style={{ fontSize: 10, color: '#555', fontFamily: FF }}>{instr.priority}</div>
               </div>
             ))}
           </>
@@ -259,7 +261,7 @@ export default function SimulationVisualizePage() {
                   padding: '4px 12px',
                   fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
                   fontFamily: FF,
-                  color: selectedAisle === idx ? '#000' : '#bbb',
+                  color: selectedAisle === idx ? '#000' : '#666',
                   borderBottom: selectedAisle === idx ? '1px solid #000' : '1px solid transparent',
                 }}
               >
@@ -278,7 +280,7 @@ export default function SimulationVisualizePage() {
         {/* Active missions */}
         <div style={{ ...T.label, marginBottom: 10 }}>Active Missions</div>
         {activeMissions.length === 0 ? (
-          <div style={{ ...T.micro, color: '#bbb' }}>No active missions</div>
+          <div style={{ ...T.micro, color: '#666' }}>No active missions</div>
         ) : (
           <>
             <div style={{
@@ -301,7 +303,7 @@ export default function SimulationVisualizePage() {
                 }}>
                   {s.phase}
                 </div>
-                <div style={{ fontSize: 10, color: s.is_carrying ? '#000' : '#ccc', fontFamily: FF }}>
+                <div style={{ fontSize: 10, color: s.is_carrying ? '#000' : '#777', fontFamily: FF }}>
                   {s.is_carrying ? s.carried_box_id.slice(-8) : '—'}
                 </div>
                 <div style={{ fontSize: 11, color: '#000', fontFamily: FF }}>
@@ -338,7 +340,7 @@ export default function SimulationVisualizePage() {
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: '#aaa', textDecoration: 'none',
+            color: '#555', textDecoration: 'none',
           }}
         >
           ← Return to all simulations
@@ -348,7 +350,7 @@ export default function SimulationVisualizePage() {
           <div style={{ ...T.section, color: '#000' }}>
             {id.slice(0, 8).toUpperCase()}
           </div>
-          <div style={{ fontSize: 11, color: '#aaa', fontFamily: FF }}>
+          <div style={{ fontSize: 11, color: '#555', fontFamily: FF }}>
             {snapshot ? `Tick ${snapshot.tick}` : '—'}
             {totalTicks !== null ? ` / ${totalTicks}` : ''}
           </div>
@@ -371,7 +373,7 @@ export default function SimulationVisualizePage() {
                 padding: '8px 20px 8px 0',
                 fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
                 fontFamily: FF,
-                color: activeTab === tab.id ? '#000' : '#bbb',
+                color: activeTab === tab.id ? '#000' : '#666',
                 borderBottom: activeTab === tab.id ? '1px solid #000' : '1px solid transparent',
                 marginBottom: -1,
                 transition: 'color 0.15s, border-color 0.15s',
@@ -386,20 +388,22 @@ export default function SimulationVisualizePage() {
       {/* ── Content ── */}
       <div style={{ flex: 1, position: 'relative', padding: '28px 24px', overflowY: 'auto' }}>
 
-        {/* ── Metrics + speed ── */}
+        {/* ── Right panel (merged metrics + KPIs) ── */}
         <div style={{
-          position: 'absolute', top: 20, right: 24,
+          position: 'absolute', top: 20, right: 24, bottom: 20,
+          width: 200,
           border: '1px solid #e8e8e8',
           padding: '14px 18px',
-          display: 'flex', flexDirection: 'column', gap: 12,
-          minWidth: 200,
+          display: 'flex', flexDirection: 'column', gap: 16,
+          overflowY: 'auto',
+          boxSizing: 'border-box',
         }}>
-          <Metric label="Current tick"   value={snapshot?.tick ?? null} />
+          <Metric label="Current tick"    value={snapshot?.tick ?? null} />
           <Metric label="Avg pallet fill" value={avgFill} unit="%" />
-          <Metric label="Shuttles busy"  value={busyShuttles > 0 ? busyShuttles : null} />
+          <Metric label="Shuttles busy"   value={busyShuttles > 0 ? busyShuttles : null} />
 
-          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
-            <div style={{ ...T.label, marginBottom: 6 }}>Playback speed</div>
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+            <div style={{ ...T.label, marginBottom: 8 }}>Playback speed</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="number"
@@ -417,33 +421,28 @@ export default function SimulationVisualizePage() {
               <div style={T.micro}>ticks/s</div>
             </div>
           </div>
-        </div>
 
-        {/* ── KPI panel ── */}
-        {snapshot && (() => {
-          const m = snapshot.metrics
-          const boxesInProgress = pallets.reduce((s, p) => s + p.placed_count, 0)
-          return (
-            <div style={{
-              position: 'absolute', bottom: 20, right: 24,
-              border: '1px solid #e8e8e8',
-              padding: '14px 18px',
-              display: 'flex', flexDirection: 'column', gap: 12,
-              minWidth: 200,
-            }}>
-              <Metric label="Active pallets"    value={pallets.length > 0 ? pallets.length : null} />
-              <Metric label="Boxes in progress" value={boxesInProgress > 0 ? boxesInProgress : null} />
-              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Metric label="Pallets sent"      value={m.total_pallets_sent > 0 ? m.total_pallets_sent : null} />
-                <Metric label="Full pallets"      value={m.full_pallets > 0 ? m.full_pallets : null} />
-                <Metric label="Full pallet ratio" value={m.total_pallets_sent > 0 ? m.full_pallet_ratio : null} unit="%" />
-                <Metric label="Total boxes sent"  value={m.total_boxes_sent > 0 ? m.total_boxes_sent : null} />
-                <Metric label="Avg fill rate"     value={m.total_pallets_sent > 0 ? m.avg_fill_rate : null} unit="%" />
-                <Metric label="Throughput"        value={m.total_pallets_sent > 0 ? Math.round(snapshot.tick / m.total_pallets_sent) : null} unit=" ticks/pallet" />
-              </div>
-            </div>
-          )
-        })()}
+          {snapshot && (() => {
+            const m = snapshot.metrics
+            const boxesInProgress = pallets.reduce((s, p) => s + p.placed_count, 0)
+            return (
+              <>
+                <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Metric label="Active pallets"    value={pallets.length > 0 ? pallets.length : null} />
+                  <Metric label="Boxes in progress" value={boxesInProgress > 0 ? boxesInProgress : null} />
+                </div>
+                <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Metric label="Pallets sent"      value={m.total_pallets_sent > 0 ? m.total_pallets_sent : null} />
+                  <Metric label="Full pallets"      value={m.full_pallets > 0 ? m.full_pallets : null} />
+                  <Metric label="Full pallet ratio" value={m.total_pallets_sent > 0 ? m.full_pallet_ratio : null} unit="%" />
+                  <Metric label="Total boxes sent"  value={m.total_boxes_sent > 0 ? m.total_boxes_sent : null} />
+                  <Metric label="Avg fill rate"     value={m.total_pallets_sent > 0 ? m.avg_fill_rate : null} unit="%" />
+                  <Metric label="Throughput"        value={m.total_pallets_sent > 0 ? Math.round(snapshot.tick / m.total_pallets_sent) : null} unit=" ticks/pallet" />
+                </div>
+              </>
+            )
+          })()}
+        </div>
 
         {/* ── Tab content ── */}
         {activeTab !== '3d' && (

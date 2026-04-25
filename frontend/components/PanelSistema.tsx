@@ -39,14 +39,14 @@ export default function PanelSistema({ cfg, mockData }: PanelSistemaProps) {
             padding: '4px 0', borderBottom: '1px solid #f8f8f8',
           }}
         >
-          <span style={{ ...T.label, color: '#999' }}>A{String(i + 1).padStart(2, '0')}</span>
+          <span style={{ ...T.label, color: '#555' }}>A{String(i + 1).padStart(2, '0')}</span>
           <span style={{
             fontSize: 9, letterSpacing: '0.04em',
-            color: r.status === 'picking' ? '#22c55e' : '#bbb',
+            color: r.status === 'picking' ? '#22c55e' : '#666',
           }}>
             {r.status === 'picking' ? '● ACTIVO' : '○ IDLE'}
           </span>
-          <span style={{ fontSize: 9, color: '#999', letterSpacing: '0.02em' }}>{r.throughput}/h</span>
+          <span style={{ fontSize: 9, color: '#555', letterSpacing: '0.02em' }}>{r.throughput}/h</span>
         </div>
       ))}
 

@@ -31,7 +31,7 @@ export default function NavBar({ liveCount }: NavBarProps) {
       <div style={{
         marginLeft: 'auto', paddingRight: 28,
         display: 'flex', alignItems: 'center', gap: 6,
-        ...T.nav, color: '#aaa',
+        ...T.nav, color: '#555',
       }}>
         <span style={{
           width: 6, height: 6, borderRadius: '50%',

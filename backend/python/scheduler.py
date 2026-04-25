@@ -104,6 +104,7 @@ def build_cpp_params(
     num_slots: int,
     num_y: int,
     num_sides: int,
+    num_robots: int,
     max_ticks: int,
     boxes: list[scheduler_cpp.Box] | None = None,
 ) -> scheduler_cpp.Params:
@@ -112,7 +113,7 @@ def build_cpp_params(
     p.num_slots = num_slots
     p.num_y = num_y
     p.num_sides = num_sides
-    p.num_robots = 1
+    p.num_robots = num_robots
     p.max_ticks = max_ticks
     if boxes:
         p.boxes = boxes

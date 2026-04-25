@@ -75,7 +75,7 @@ function SimRow({ sim }: { sim: SimulationRecord }) {
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {sim.sim_id.slice(0, 8).toUpperCase()}
           </div>
-          <div style={{ ...T.micro, color: '#bbb', marginTop: 2 }}>{fmt(sim.created_at)}</div>
+          <div style={{ ...T.micro, color: '#666', marginTop: 2 }}>{fmt(sim.created_at)}</div>
         </div>
         <div style={{ ...T.label, color: statusColor(status) }}>{status}</div>
         <Link
@@ -89,7 +89,7 @@ function SimRow({ sim }: { sim: SimulationRecord }) {
         >
           Visualize
         </Link>
-        <div style={{ fontSize: 9, color: '#ccc', fontFamily: FF }}>{open ? '▲' : '▼'}</div>
+        <div style={{ fontSize: 9, color: '#777', fontFamily: FF }}>{open ? '▲' : '▼'}</div>
       </div>
 
       {open && (
@@ -150,7 +150,7 @@ export default function PanelSimulaciones() {
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
             fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
-            fontFamily: FF, color: loading ? '#ccc' : '#888',
+            fontFamily: FF, color: loading ? '#777' : '#555',
           }}
           disabled={loading}
         >
@@ -165,7 +165,7 @@ export default function PanelSimulaciones() {
       )}
 
       {!error && sims.length === 0 && !loading && (
-        <div style={{ ...T.micro, color: '#ccc', marginTop: 8 }}>No simulations</div>
+        <div style={{ ...T.micro, color: '#777', marginTop: 8 }}>No simulations</div>
       )}
 
       {sims.map(sim => <SimRow key={sim.sim_id} sim={sim} />)}

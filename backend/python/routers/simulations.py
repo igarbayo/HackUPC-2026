@@ -47,6 +47,7 @@ def _build_cpp_params(params: SimulationParams) -> scheduler_cpp.Params:
         num_slots=topo["num_slots"]   if topo else params.num_slots,
         num_y=topo["num_y"]           if topo else params.num_y,
         num_sides=topo["num_sides"]   if topo else params.num_sides,
+        num_robots=params.num_robots,
         max_ticks=params.max_ticks,
         boxes=boxes if boxes else None,
     )
