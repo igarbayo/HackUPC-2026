@@ -33,6 +33,15 @@ interface SimulationRecord {
   params: SimulationParams
 }
 
+function displayStatus(sim: SimulationRecord): SimulationRecord['status'] {
+  if (sim.status !== 'done') return sim.status
+  // Backend says done, but the WS stream may still be running
+  const hasTps     = localStorage.getItem(`silos_tps_${sim.sim_id}`) !== null
+  const streamDone = localStorage.getItem(`silos_stream_done_${sim.sim_id}`) === 'true'
+  if (hasTps && !streamDone) return 'running'
+  return 'done'
+}
+
 function statusColor(s: SimulationRecord['status']) {
   if (s === 'done')    return '#22c55e'
   if (s === 'error')   return '#ef4444'
@@ -46,6 +55,7 @@ function fmt(iso: string) {
 function SimRow({ sim }: { sim: SimulationRecord }) {
   const [open, setOpen] = useState(false)
   const g = sim.params.generator
+  const status = displayStatus(sim)
 
   return (
     <div style={{ borderBottom: '1px solid #f4f4f4' }}>
@@ -58,7 +68,7 @@ function SimRow({ sim }: { sim: SimulationRecord }) {
       >
         <div style={{
           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-          background: statusColor(sim.status),
+          background: statusColor(status),
         }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: '#000', letterSpacing: '0.04em', fontFamily: FF,
@@ -67,7 +77,7 @@ function SimRow({ sim }: { sim: SimulationRecord }) {
           </div>
           <div style={{ ...T.micro, color: '#bbb', marginTop: 2 }}>{fmt(sim.created_at)}</div>
         </div>
-        <div style={{ ...T.label, color: statusColor(sim.status) }}>{sim.status}</div>
+        <div style={{ ...T.label, color: statusColor(status) }}>{status}</div>
         <Link
           href={`/simulations/${sim.sim_id}`}
           onClick={e => e.stopPropagation()}
