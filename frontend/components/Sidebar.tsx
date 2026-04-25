@@ -1,21 +1,17 @@
 'use client'
 
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { FF } from '@/lib/tokens'
 
-export type SidebarSection = 'sistema' | 'configuracion' | 'parametros'
-
-const ITEMS: { id: SidebarSection; label: string }[] = [
-  { id: 'sistema',       label: 'Sistema'        },
-  { id: 'configuracion', label: 'Configuración'  },
-  { id: 'parametros',    label: 'Parámetros'     },
+const ITEMS: { path: string; label: string }[] = [
+  { path: '/parameters',  label: 'Parameters'  },
+  { path: '/simulations', label: 'Simulations' },
 ]
 
-interface SidebarProps {
-  active: SidebarSection | null
-  setActive: (id: SidebarSection | null) => void
-}
+export default function Sidebar() {
+  const pathname = usePathname()
 
-export default function Sidebar({ active, setActive }: SidebarProps) {
   return (
     <div style={{
       position: 'fixed', left: 0, top: 48, bottom: 0, width: 48,
@@ -25,11 +21,11 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
       fontFamily: FF,
     }}>
       {ITEMS.map(item => {
-        const isActive = active === item.id
+        const isActive = pathname === item.path
         return (
-          <div
-            key={item.id}
-            onClick={() => setActive(isActive ? null : item.id)}
+          <Link
+            key={item.path}
+            href={item.path}
             title={item.label}
             style={{
               writingMode: 'vertical-rl',
@@ -37,6 +33,7 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
               fontSize: 9, letterSpacing: '0.18em',
               textTransform: 'uppercase',
               cursor: 'pointer', userSelect: 'none',
+              textDecoration: 'none',
               color: isActive ? '#000' : '#bbb',
               borderLeft: isActive ? '1px solid #000' : '1px solid transparent',
               paddingLeft: 5, paddingBottom: 2,
@@ -44,11 +41,10 @@ export default function Sidebar({ active, setActive }: SidebarProps) {
             }}
           >
             {item.label}
-          </div>
+          </Link>
         )
       })}
 
-      {/* Bottom version dot */}
       <div style={{ marginTop: 'auto', marginBottom: 20 }}>
         <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#e0e0e0' }} />
       </div>

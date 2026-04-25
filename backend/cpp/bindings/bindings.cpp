@@ -72,7 +72,8 @@ PYBIND11_MODULE(scheduler_cpp, m) {
     py::class_<TickSnapshot>(m, "TickSnapshot")
         .def_readonly("tick",    &TickSnapshot::tick)
         .def_readonly("aisle",   &TickSnapshot::aisle)
-        .def_readonly("pallets", &TickSnapshot::pallets);
+        .def_readonly("pallets", &TickSnapshot::pallets)
+        .def_readonly("events",  &TickSnapshot::events);
 
     m.def("run_simulation_with_state",
         [](const Params& p) -> py::dict {

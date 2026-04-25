@@ -77,6 +77,17 @@ def get_simulation(sim_id: str):
     return store.simulations[sim_id]
 
 
+@router.get("/{sim_id}/progress")
+def get_progress(sim_id: str):
+    if sim_id not in store.simulations:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    return {
+        "status":        store.simulations[sim_id].status,
+        "events_so_far": len(store.events.get(sim_id, [])),
+        "snaps_so_far":  len(store.snapshots.get(sim_id, [])),
+    }
+
+
 @router.get("/{sim_id}/result")
 def get_result(sim_id: str):
     if sim_id not in store.simulations:

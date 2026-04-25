@@ -11,6 +11,7 @@ from models import (
     EventModel,
     PalletStateModel,
     PositionModel,
+    RobotStateModel,
     ShuttleStateModel,
     TickStateModel,
 )
@@ -90,7 +91,7 @@ def _snapshot_to_tick_state(snap) -> TickStateModel:
     return TickStateModel(
         tick=snap.tick,
         aisle=AisleStateModel(shuttles=shuttles),
-        pallets=pallets,
+        robot=RobotStateModel(pallets=pallets),
     )
 
 
@@ -115,8 +116,7 @@ def submit(sim_id: str, params: scheduler_cpp.Params) -> None:
 
     def run_cpp() -> None:
         try:
-            raw_events = scheduler_cpp.run_simulation_streaming(params, queue)
-            store.events[sim_id] = [_event_to_model(e) for e in raw_events]
+            scheduler_cpp.run_simulation_streaming(params, queue)
         except Exception:
             store.simulations[sim_id].status = "error"
             store.simulations[sim_id].finished_at = datetime.now(timezone.utc)
@@ -128,6 +128,8 @@ def submit(sim_id: str, params: scheduler_cpp.Params) -> None:
             snap = queue.pop()
             if snap is None:
                 break
+            for e in snap.events:
+                store.events[sim_id].append(_event_to_model(e))
             store.snapshots[sim_id].append(_snapshot_to_tick_state(snap))
         if store.simulations[sim_id].status != "error":
             store.simulations[sim_id].status = "done"

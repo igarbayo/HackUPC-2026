@@ -40,10 +40,14 @@ class PalletStateModel(BaseModel):
     boxes: list[BoxModel]
 
 
+class RobotStateModel(BaseModel):
+    pallets: list[PalletStateModel]
+
+
 class TickStateModel(BaseModel):
     tick: int
     aisle: AisleStateModel
-    pallets: list[PalletStateModel]
+    robot: RobotStateModel
 
 
 class EventModel(BaseModel):
