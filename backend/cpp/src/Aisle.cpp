@@ -153,27 +153,37 @@ const Slot& Aisle::slotAt(Position pos) const {
     return slots_[pos.side - 1][pos.y - 1][pos.x];
 }
 
-std::optional<Position> Aisle::findNearestWithFamily(const Family& f, int yLevel) const {
+std::optional<Position> Aisle::findBestBoxForShuttle(const Family& f, Position shuttlePos) const {
+    const int yLevel = shuttlePos.y;
     if (yLevel < 1 || yLevel > numY_) return std::nullopt;
-    int bestX = INT_MAX;
+
+    int bestCost   = INT_MAX;
+    bool bestFrees = false;  // does best candidate free a blocked z2 box?
+    int bestX      = -1;
     std::optional<Position> best;
+
     for (int s = 1; s <= numSides_; ++s) {
         for (int x = 0; x < length_; ++x) {
             const Slot& slot = slots_[s-1][yLevel-1][x];
-            // z1 (always accessible if occupied)
-            if (const Box* b = slot.peek(); b && b->family() == f) {
-                if (x < bestX) {
-                    bestX = x;
-                    best = Position{x, yLevel, 1, s};
+            int cost = std::abs(shuttlePos.x - x) + std::abs(x - port_.x);
+
+            // freesBlocked: picking z1 from a full slot (z1+z2 both occupied) makes
+            // the z2 box immediately accessible — prioritised over lone z1 boxes.
+            auto tryBox = [&](int z, const Box* b, bool freesBlocked) {
+                if (!b || b->family() != f) return;
+                // Tiebreak order: 1) lower cost  2) full-cell preference  3) larger x
+                bool better = cost < bestCost
+                    || (cost == bestCost && freesBlocked && !bestFrees)
+                    || (cost == bestCost && freesBlocked == bestFrees && x > bestX);
+                if (better) {
+                    bestCost  = cost;
+                    bestFrees = freesBlocked;
+                    bestX     = x;
+                    best      = Position{x, yLevel, z, s};
                 }
-            }
-            // z2 (accessible only when z1 is empty)
-            if (const Box* b = slot.peekZ2(); b && b->family() == f) {
-                if (x < bestX) {
-                    bestX = x;
-                    best = Position{x, yLevel, 2, s};
-                }
-            }
+            };
+            tryBox(1, slot.peek(),    slot.isFull());  // z1: accessible if occupied
+            tryBox(2, slot.peekZ2(), false);           // z2: only accessible when z1 empty
         }
     }
     return best;
@@ -243,13 +253,13 @@ void Aisle::assignNextTo(Shuttle& s) {
 
         } else {
             if (!it->requestedFam) continue;
-            auto nearestPos = findNearestWithFamily(*it->requestedFam, shuttleY);
-            if (!nearestPos) continue;
+            auto boxPos = findBestBoxForShuttle(*it->requestedFam, s.position());
+            if (!boxPos) continue;
 
             Position dropPos;
             dropPos.x = port_.x; dropPos.y = shuttleY;
             dropPos.z = 1;        dropPos.side = 1;
-            s.assignOutputMission(*nearestPos, dropPos);
+            s.assignOutputMission(*boxPos, dropPos);
             instructionQueue_.erase(it);
             return;
         }
@@ -257,7 +267,65 @@ void Aisle::assignNextTo(Shuttle& s) {
 }
 
 void Aisle::assignInstructions() {
-    for (auto& shuttle : shuttles_) assignNextTo(shuttle);
+    // Output pass: for each output instruction (sorted by priority), find the
+    // globally best (shuttle, box) pair and assign it.
+    for (auto instrIt = instructionQueue_.begin(); instrIt != instructionQueue_.end(); ) {
+        if (instrIt->kind != Instruction::Kind::Output || !instrIt->requestedFam) {
+            ++instrIt;
+            continue;
+        }
+
+        int bestCost = INT_MAX;
+        int bestX    = -1;
+        int bestIdx  = -1;
+        std::optional<Position> bestBox;
+
+        for (int i = 0; i < (int)shuttles_.size(); ++i) {
+            if (!shuttles_[i].isFree()) continue;
+            auto boxPos = findBestBoxForShuttle(*instrIt->requestedFam, shuttles_[i].position());
+            if (!boxPos) continue;
+            int cost = std::abs(shuttles_[i].position().x - boxPos->x)
+                     + std::abs(boxPos->x - port_.x);
+            if (cost < bestCost || (cost == bestCost && boxPos->x > bestX)) {
+                bestCost = cost;
+                bestX    = boxPos->x;
+                bestIdx  = i;
+                bestBox  = boxPos;
+            }
+        }
+
+        if (bestIdx != -1) {
+            Position dropPos;
+            dropPos.x = port_.x; dropPos.y = shuttles_[bestIdx].yLevel();
+            dropPos.z = 1;        dropPos.side = 1;
+            shuttles_[bestIdx].assignOutputMission(*bestBox, dropPos);
+            instrIt = instructionQueue_.erase(instrIt);
+        } else {
+            ++instrIt;
+        }
+    }
+
+    // Input pass: assign to any free shuttle.
+    for (auto& shuttle : shuttles_) {
+        if (!shuttle.isFree() || pendingInputBoxes_.empty()) continue;
+        const Family& fam = pendingInputBoxes_.front().family();
+        bool isHot = outputReservedByFamily_.count(fam) &&
+                     outputReservedByFamily_.at(fam) > 0;
+        std::optional<Position> freePos;
+        for (int side = 1; side <= numSides_ && !freePos; ++side)
+            freePos = findFreeSlot(side, shuttle.yLevel(), isHot);
+        if (!freePos) continue;
+        for (auto it = instructionQueue_.begin(); it != instructionQueue_.end(); ++it) {
+            if (it->kind == Instruction::Kind::Input) {
+                Position pickupPos;
+                pickupPos.x = port_.x; pickupPos.y = shuttle.yLevel();
+                pickupPos.z = 1;        pickupPos.side = 1;
+                shuttle.assignInputMission(pickupPos, *freePos);
+                instructionQueue_.erase(it);
+                break;
+            }
+        }
+    }
 }
 
 void Aisle::updateMeta() {
