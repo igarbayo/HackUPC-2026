@@ -15,8 +15,10 @@ class Aisle {
 public:
     struct Metadata {
         std::unordered_map<Family, int>      countByFamily;
-        std::unordered_map<Family, int>      reservedByFamily;
-        std::unordered_map<Family, Position> nearestByFamily;
+        std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
+        std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
+        std::unordered_map<Family, Tick>     oldestArrivalByFamily; // earliest arrivalTick stored per family
+        std::unordered_map<Family, float>    avgDistanceByFamily;   // mean |slot.x - port.x| per family
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;
@@ -65,14 +67,15 @@ public:
     const std::vector<Shuttle>& shuttles() const;
     AisleSnap           snapshot() const;
 
-    // Find nearest accessible slot of given family at the given Y level.
-    // Returns nullopt if none found at that Y level.
-    std::optional<Position> findNearestWithFamily(const Family& f, int yLevel) const;
+    // Find the best accessible box of the given family for a specific shuttle.
+    // Cost = dist(shuttle→box) + dist(box→port). Ties broken by largest x (prefer freeing far slots).
+    std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
 
-    // Find best free slot at (side, y) for input placement.
-    // preferNear=true  → smallest x (hot family)
-    // preferNear=false → largest x  (cold family)
-    std::optional<Position> findFreeSlot(int side, int y, bool preferNear) const;
+    // Find best free slot at level y for input placement using numeric cost function.
+    std::optional<Position> findBestInputSlot(const Box& box, int y) const;
+
+    // Find nearest stored box of family f at Y level y, skipping claimed slots.
+    std::optional<Position> findNearestWithFamily(const Family& f, int y) const;
 
 private:
     int                      length_;
@@ -96,6 +99,9 @@ private:
     std::unordered_map<Family, std::queue<Box>> readyOutputs_;
     std::queue<Box>          pendingInputBoxes_;
     std::unordered_map<Family, int> outputReservedByFamily_;
+    std::unordered_map<Family, Tick> oldestArrivalByFamily_;
+    // slots claimed by an in-flight input mission, keyed by {side, y} → set of x
+    std::map<LevelKey, std::set<int>> claimedInputSlots_;
     std::vector<Event>*             eventLog_ = nullptr;
 
     void assignInstructions();
