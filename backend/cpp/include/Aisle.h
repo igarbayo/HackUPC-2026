@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "Box.h"
+#include "InputBelt.h"
 #include "Slot.h"
 #include "Shuttle.h"
 #include <map>
@@ -46,6 +47,8 @@ public:
     Metadata            metadata()    const;
     Position            port()        const;
 
+    void                connectBelt(InputBelt& belt);
+
     void                tick();
     void                setEventLog(std::vector<Event>* log);
 
@@ -86,6 +89,7 @@ private:
     // freeZ1_[{side,y}] = set of x where z1 is free (can accept a new box at z1)
     std::map<LevelKey, std::set<int>> freeZ1_;
 
+    InputBelt*               belt_ = nullptr;
     std::unordered_map<Family, std::queue<Box>> readyOutputs_;
     std::queue<Box>          pendingInputBoxes_;
     std::unordered_map<Family, int> outputReservedByFamily_;
