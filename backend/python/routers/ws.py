@@ -30,25 +30,25 @@ async def stream_simulation(websocket: WebSocket, sim_id: str):
     paused = False
     idx = 0
 
-    async def try_receive() -> dict | None:
-        """Non-blocking read of a client message; returns None if nothing pending."""
-        try:
-            raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.0)
-            return json.loads(raw)
-        except (asyncio.TimeoutError, Exception):
-            return None
+    # A persistent background task lets the event loop receive messages during
+    # any asyncio.sleep — unlike wait_for(timeout=0), which never yields enough.
+    recv_task: asyncio.Task = asyncio.create_task(websocket.receive_text())
 
     try:
         while True:
-            msg = await try_receive()
-            if msg:
-                action = msg.get("action")
-                if action == "set_speed":
-                    speed = float(msg.get("value", speed))
-                elif action == "pause":
-                    paused = True
-                elif action == "resume":
-                    paused = False
+            if recv_task.done():
+                try:
+                    msg = json.loads(recv_task.result())
+                    action = msg.get("action")
+                    if action == "set_speed":
+                        speed = float(msg.get("value", speed))
+                    elif action == "pause":
+                        paused = True
+                    elif action == "resume":
+                        paused = False
+                except Exception:
+                    pass
+                recv_task = asyncio.create_task(websocket.receive_text())
 
             if paused:
                 await asyncio.sleep(0.05)
@@ -69,3 +69,5 @@ async def stream_simulation(websocket: WebSocket, sim_id: str):
         await websocket.send_json({"type": "done", "total_ticks": total})
     except WebSocketDisconnect:
         pass
+    finally:
+        recv_task.cancel()

@@ -69,6 +69,7 @@ export default function SimulationVisualizePage() {
     ? Math.round(pallets.reduce((sum, p) => sum + p.placed_count, 0) / pallets.length / PALLET_CAPACITY * 100)
     : null
 
+
   // ── Tab content ────────────────────────────────────────────────────────
   function renderWarehouse() {
     if (!snapshot) return <div style={T.label}>Waiting for data...</div>
@@ -263,6 +264,32 @@ export default function SimulationVisualizePage() {
             </div>
           </div>
         </div>
+
+        {/* ── KPI panel ── */}
+        {snapshot && (() => {
+          const m = snapshot.metrics
+          const boxesInProgress = pallets.reduce((s, p) => s + p.placed_count, 0)
+          return (
+            <div style={{
+              position: 'absolute', bottom: 20, right: 24,
+              border: '1px solid #e8e8e8',
+              padding: '14px 18px',
+              display: 'flex', flexDirection: 'column', gap: 12,
+              minWidth: 200,
+            }}>
+              <Metric label="Active pallets"    value={pallets.length > 0 ? pallets.length : null} />
+              <Metric label="Boxes in progress" value={boxesInProgress > 0 ? boxesInProgress : null} />
+              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Metric label="Pallets sent"      value={m.total_pallets_sent > 0 ? m.total_pallets_sent : null} />
+                <Metric label="Full pallets"      value={m.full_pallets > 0 ? m.full_pallets : null} />
+                <Metric label="Full pallet ratio" value={m.total_pallets_sent > 0 ? m.full_pallet_ratio : null} unit="%" />
+                <Metric label="Total boxes sent"  value={m.total_boxes_sent > 0 ? m.total_boxes_sent : null} />
+                <Metric label="Avg fill rate"     value={m.total_pallets_sent > 0 ? m.avg_fill_rate : null} unit="%" />
+                <Metric label="Throughput"        value={m.total_pallets_sent > 0 ? Math.round(snapshot.tick / m.total_pallets_sent) : null} unit=" ticks/pallet" />
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Tab content ── */}
         <div style={{ maxWidth: 'calc(100% - 240px)' }}>

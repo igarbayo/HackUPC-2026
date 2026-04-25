@@ -22,10 +22,20 @@ export interface PalletState {
   reserved_count: number
 }
 
+export interface MetricsSnapshot {
+  total_pallets_sent: number
+  full_pallets: number
+  full_pallet_ratio: number
+  total_boxes_sent: number
+  avg_fill_rate: number
+  boxes_by_family: Record<string, number>
+}
+
 export interface TickSnapshot {
   tick: number
   aisle: { shuttles: ShuttleState[] }
   robot: { pallets: PalletState[] }
+  metrics: MetricsSnapshot
 }
 
 export type StreamStatus = 'connecting' | 'streaming' | 'done' | 'error'
