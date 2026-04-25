@@ -13,13 +13,21 @@ Scheduler::Scheduler(Aisle& aisle, std::vector<Robot>& robots, InputBelt& belt,
 void Scheduler::activate() {
     ++tick_;
 
-    // 1. Each robot ticks
+    // 1. Feed boxes whose arrival_tick has come
+    while (belt_.peek() && belt_.peek()->arrivalTick() <= tick_) {
+        auto box = belt_.pop();
+        if (eventLog_)
+            eventLog_->push_back({"box_arrived", tick_, box->id(), -1, box->family()});
+        aisle_.input(std::move(*box));
+    }
+
+    // 2. Each robot ticks
     for (auto& robot : robots_) {
         robot.setCurrentTick(tick_);
         robot.tick(aisle_);
     }
 
-    // 2. Aisle tick (reorder instructions, advance shuttles)
+    // 3. Aisle tick (reorder instructions, advance shuttles)
     aisle_.tick();
 }
 
