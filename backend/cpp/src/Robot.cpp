@@ -101,7 +101,7 @@ Pallet Robot::dispatchPallet(int slotIndex) {
     if (!pallets_[slotIndex])
         throw std::runtime_error("Robot::dispatchPallet: slot is empty");
     if (eventLog_)
-        eventLog_->push_back({"pallet_dispatched", currentTick_, 0, slotIndex, pallets_[slotIndex]->family()});
+        eventLog_->push_back({"pallet_dispatched", currentTick_, {}, slotIndex, pallets_[slotIndex]->family()});
     Pallet p = std::move(*pallets_[slotIndex]);
     pallets_[slotIndex].reset();
     return p;
