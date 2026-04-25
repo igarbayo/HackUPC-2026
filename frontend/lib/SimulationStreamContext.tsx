@@ -6,6 +6,13 @@ import { createContext, useContext, useRef, useState, useCallback } from 'react'
 
 interface Position { x: number; y: number; z: number; side: number }
 
+export interface BoxModel {
+  id: string
+  family: string
+  arrival_tick: number
+  position?: { x: number; y: number; z: number; side: number }
+}
+
 export interface ShuttleState {
   y_level: number
   position: Position
@@ -13,6 +20,7 @@ export interface ShuttleState {
   is_carrying: boolean
   carried_box_id: string
   carried_box_family: string
+  floor_boxes: BoxModel[]
 }
 
 export interface PalletState {

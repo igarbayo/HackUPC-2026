@@ -2,13 +2,25 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { FF, T } from '@/lib/tokens'
 import { useSimulationStream } from '@/lib/SimulationStreamContext'
 import type { StreamStatus } from '@/lib/SimulationStreamContext'
 
-type Tab = 'warehouse' | 'aisle' | 'shuttle'
+const Warehouse3DView = dynamic(
+  () => import('@/components/Warehouse3DView'),
+  { ssr: false, loading: () => null },
+)
+
+type Tab = 'warehouse' | 'aisle' | 'shuttle' | '3d'
 type WsStatus = StreamStatus
+
+interface SimParams {
+  num_slots: number
+  num_y: number
+  num_sides: number
+}
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -18,6 +30,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'warehouse', label: 'Warehouse' },
   { id: 'aisle',     label: 'Aisle'     },
   { id: 'shuttle',   label: 'Shuttle'   },
+  { id: '3d',        label: '3D'        },
 ]
 
 const STATUS_LABEL: Record<WsStatus, string> = {
@@ -50,11 +63,21 @@ function Metric({ label, value, unit }: { label: string; value: number | null; u
 
 // ── Main component ─────────────────────────────────────────────────────
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 export default function SimulationVisualizePage() {
   const { id }           = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<Tab>('warehouse')
+  const [simParams, setSimParams] = useState<SimParams | null>(null)
   const { streams, setSpeed } = useSimulationStream()
   const stream = streams[id] ?? { status: 'connecting' as WsStatus, snapshot: null, totalTicks: null, speed: 1 }
+
+  useEffect(() => {
+    fetch(`${API_BASE}/simulations/${id}`)
+      .then(r => r.json())
+      .then((d: { params: SimParams }) => setSimParams(d.params))
+      .catch(() => {})
+  }, [id])
 
   function handleSpeedChange(v: number) {
     setSpeed(id, Math.max(0.1, v))
@@ -168,10 +191,13 @@ export default function SimulationVisualizePage() {
     )
   }
 
+  function render3D() { return null }
+
   const TAB_RENDER: Record<Tab, () => React.ReactNode> = {
     warehouse: renderWarehouse,
     aisle:     renderAisle,
     shuttle:   renderShuttle,
+    '3d':      render3D,
   }
 
   return (
@@ -292,9 +318,21 @@ export default function SimulationVisualizePage() {
         })()}
 
         {/* ── Tab content ── */}
-        <div style={{ maxWidth: 'calc(100% - 240px)' }}>
-          {TAB_RENDER[activeTab]()}
-        </div>
+        {activeTab !== '3d' && (
+          <div style={{ maxWidth: 'calc(100% - 240px)' }}>
+            {TAB_RENDER[activeTab]()}
+          </div>
+        )}
+
+        {/* ── 3D view (absolute fill, leaves space for right panels) ── */}
+        {activeTab === '3d' && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 240, bottom: 0 }}>
+            {!simParams
+              ? <div style={{ ...T.label, padding: 24 }}>Loading...</div>
+              : <Warehouse3DView simId={id} params={simParams} snapshot={snapshot} />
+            }
+          </div>
+        )}
 
       </div>
     </div>
