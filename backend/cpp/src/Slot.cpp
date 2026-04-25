@@ -15,7 +15,7 @@ void Slot::place(Box b) {
 }
 
 void Slot::placeZ2(Box b) {
-    if (!z1_) throw std::runtime_error("Slot::placeZ2: z1 must be occupied first");
+    if (!z1_) throw std::runtime_error("Slot::placeZ2: z1 must be empty first");
     if (z2_)  throw std::runtime_error("Slot::placeZ2: z2 already occupied");
     z2_ = std::move(b);
 }

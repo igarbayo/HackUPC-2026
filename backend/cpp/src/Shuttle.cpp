@@ -11,17 +11,24 @@ Shuttle::Phase Shuttle::phase()       const { return phase_; }
 const Box*     Shuttle::carriedBox()  const { return carried_ ? &*carried_ : nullptr; }
 
 void Shuttle::assignOutputMission(Position pickupFrom, Position dropAt) {
-    pickup_ = pickupFrom;
-    drop_   = dropAt;
-    isInputMission_ = false;
-    phase_ = Phase::MovingToPickup;
+    pickup_      = pickupFrom;
+    drop_        = dropAt;
+    missionKind_ = MissionKind::Output;
+    phase_       = Phase::MovingToPickup;
 }
 
 void Shuttle::assignInputMission(Position pickupFrom, Position dropAt) {
-    pickup_ = pickupFrom;
-    drop_   = dropAt;
-    isInputMission_ = true;
-    phase_ = Phase::MovingToPickup;
+    pickup_      = pickupFrom;
+    drop_        = dropAt;
+    missionKind_ = MissionKind::Input;
+    phase_       = Phase::MovingToPickup;
+}
+
+void Shuttle::assignRelocateMission(Position pickupFrom, Position dropAt) {
+    pickup_      = pickupFrom;
+    drop_        = dropAt;
+    missionKind_ = MissionKind::Relocate;
+    phase_       = Phase::MovingToPickup;
 }
 
 void Shuttle::moveToward(Position target) {
@@ -46,7 +53,7 @@ void Shuttle::tick(Aisle& aisle) {
         [[fallthrough]];
 
     case Phase::Loading:
-        if (isInputMission_) {
+        if (missionKind_ == MissionKind::Input) {
             auto boxOpt = aisle.takeFromInputBuffer();
             if (boxOpt) {
                 carried_ = std::move(*boxOpt);
@@ -54,6 +61,7 @@ void Shuttle::tick(Aisle& aisle) {
             }
             // If no box yet (shouldn't happen in normal flow), stay in Loading
         } else {
+            // Output and Relocate: take from storage slot
             Slot& s = aisle.slotAt(pickup_);
             if (pickup_.z == 2 && s.hasZ2()) {
                 Box b = s.takeZ2();
@@ -80,15 +88,16 @@ void Shuttle::tick(Aisle& aisle) {
 
     case Phase::Unloading:
         if (carried_) {
-            if (isInputMission_) {
+            if (missionKind_ == MissionKind::Output) {
+                aisle.notifyOutputReady(*carried_);
+            } else {
+                // Input and Relocate: place box into a storage slot
                 Slot& s = aisle.slotAt(drop_);
                 if (drop_.z == 2)
                     s.placeZ2(*carried_);
                 else
                     s.place(*carried_);
                 aisle.notifyBoxPlaced(*carried_, drop_);
-            } else {
-                aisle.notifyOutputReady(*carried_);
             }
             carried_.reset();
         }

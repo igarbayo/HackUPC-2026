@@ -389,6 +389,26 @@ void Aisle::assignInstructions() {
             }
         }
     }
+
+    // Relocate pass: opportunistically compact the aisle for still-idle shuttles.
+    // Only runs when the shuttle has no pending input/output to handle.
+    if (instructionQueue_.empty() && pendingInputBoxes_.empty()) {
+        for (auto& shuttle : shuttles_) {
+            if (!shuttle.isFree()) continue;
+            auto opp = findRelocationOpportunity(shuttle.yLevel());
+            if (!opp) continue;
+            auto [fromPos, toPos] = *opp;
+            // Claim the target slot so no other mission steals it.
+            claimedInputSlots_[{toPos.side, toPos.y}].insert(toPos.x);
+            shuttle.assignRelocateMission(fromPos, toPos);
+            if (eventLog_) {
+                const Box* b = slotAt(fromPos).peek();
+                eventLog_->push_back({"box_relocated", currentTick_,
+                                      b ? b->id() : BoxId{}, -1,
+                                      b ? b->family() : Family{}});
+            }
+        }
+    }
 }
 
 void Aisle::updateMeta() {
@@ -488,4 +508,55 @@ AisleSnap Aisle::snapshot() const {
         snap.shuttles.push_back(std::move(ss));
     }
     return snap;
+}
+
+std::optional<std::pair<Position,Position>>
+Aisle::findRelocationOpportunity(int y) const {
+    if (y < 1 || y > numY_) return std::nullopt;
+
+    // Only bother if the box gets at least this many slots closer to the port.
+    constexpr int MIN_GAIN = 3;
+
+    int bestGain = MIN_GAIN - 1;  // must strictly exceed this
+    std::optional<Position> bestFrom, bestTo;
+
+    for (int s = 1; s <= numSides_; ++s) {
+        LevelKey key{s, y};
+        auto cit = claimedInputSlots_.find(key);
+
+        for (int x = 0; x < length_; ++x) {
+            if (cit != claimedInputSlots_.end() && cit->second.count(x)) continue;
+
+            const Slot& fromSlot = slots_[s-1][y-1][x];
+            const Box* b = fromSlot.peek();
+            if (!b) continue;  // no accessible box at z1
+
+            // Skip families with a pending output reservation — they will be
+            // retrieved soon anyway, moving them first wastes a trip.
+            auto rit = outputReservedByFamily_.find(b->family());
+            if (rit != outputReservedByFamily_.end() && rit->second > 0) continue;
+
+            int fromDist = std::abs(x - port_.x);
+
+            for (int tx = 0; tx < length_; ++tx) {
+                if (tx == x) continue;
+                if (cit != claimedInputSlots_.end() && cit->second.count(tx)) continue;
+
+                int gain = fromDist - std::abs(tx - port_.x);
+                if (gain <= bestGain) continue;
+
+                // Only target empty z1 slots: placing at z2 of an occupied slot
+                // would block z2 behind z1 and make it inaccessible until z1 is
+                // retrieved by a normal output mission.
+                if (!slots_[s-1][y-1][tx].isEmpty()) continue;
+
+                bestGain = gain;
+                bestFrom = Position{x,  y, 1, s};
+                bestTo   = Position{tx, y, 1, s};
+            }
+        }
+    }
+
+    if (!bestFrom || !bestTo) return std::nullopt;
+    return std::make_pair(*bestFrom, *bestTo);
 }

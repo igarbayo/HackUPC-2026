@@ -260,6 +260,55 @@ void test_full_pipeline_event_order_on_dispatch() {
             assert(e.family == "A" && "only A boxes must be placed on the A pallet");
 }
 
+// ── Relocation: compaction during idle time ───────────────────────────────────
+
+// Boxes placed directly at far positions (x=15, x=17) in a length-20 aisle.
+// Port at x=-1: dist(15)=16, dist(17)=18, initial avgDist=17.
+//
+// No input/output instructions are ever queued, so the relocate pass fires
+// immediately and must move the boxes closer to the port.
+//
+// Verified properties:
+//   1. avgDistanceByFamily["A"] strictly decreases after idle ticks.
+//   2. At least one "box_relocated" event appears in the event log.
+//
+// Boxes are placed directly (bypassing input heuristic) so the starting
+// positions are deterministic.  distBefore is measured after tick 1, when
+// metadata is refreshed but the shuttle has only just been assigned its
+// mission — the boxes are still at their original far positions.
+void test_relocation_compacts_aisle_when_idle() {
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    Aisle aisle(20, 1, 1, port);
+
+    std::vector<Event> log;
+    aisle.setEventLog(&log);
+
+    Position p15; p15.x = 15; p15.y = 1; p15.z = 1; p15.side = 1;
+    Position p17; p17.x = 17; p17.y = 1; p17.z = 1; p17.side = 1;
+    aisle.slotAt(p15).place(makeBox("a1", "A"));
+    aisle.slotAt(p17).place(makeBox("a2", "A"));
+
+    // Tick once: updateMeta() reflects boxes at x=15/17; relocate pass assigns
+    // the shuttle its first mission but the boxes have not moved yet.
+    aisle.tick();
+    float distBefore = aisle.metadata().avgDistanceByFamily.count("A")
+                     ? aisle.metadata().avgDistanceByFamily.at("A") : 0.0f;
+
+    // Idle ticks — shuttle relocates both boxes closer to port.
+    for (int t = 0; t < 300; ++t) aisle.tick();
+
+    float distAfter = aisle.metadata().avgDistanceByFamily.count("A")
+                    ? aisle.metadata().avgDistanceByFamily.at("A") : distBefore;
+
+    assert(distAfter < distBefore &&
+           "relocation must reduce average distance of stored boxes to port");
+
+    bool hadReloc = false;
+    for (const auto& e : log)
+        if (e.type == "box_relocated") { hadReloc = true; break; }
+    assert(hadReloc && "expected at least one box_relocated event in the log");
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 int main() {
@@ -270,6 +319,7 @@ int main() {
     RUN(test_stored_boxes_retrieved_nearest_first);
     RUN(test_full_pipeline_dominant_family_fills_pallet);
     RUN(test_full_pipeline_event_order_on_dispatch);
+    RUN(test_relocation_compacts_aisle_when_idle);
 
     std::cout << "\n" << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;

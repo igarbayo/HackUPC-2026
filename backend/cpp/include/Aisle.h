@@ -77,6 +77,11 @@ public:
     // Find nearest stored box of family f at Y level y, skipping claimed slots.
     std::optional<Position> findNearestWithFamily(const Family& f, int y) const;
 
+    // Find the best (from, to) pair for opportunistic relocation at level y.
+    // Returns a far accessible box and a closer free slot, maximising distance gained.
+    // Returns nullopt if no worthwhile relocation exists.
+    std::optional<std::pair<Position,Position>> findRelocationOpportunity(int y) const;
+
 private:
     int                      length_;
     int                      numY_;

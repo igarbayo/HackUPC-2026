@@ -42,6 +42,9 @@ add_executable(test_integration_retrieval ${CORE_SOURCES} tests/integration/test
 # ── end-to-end integration tests (input heuristic → robot decide → output) ───
 add_executable(test_integration ${CORE_SOURCES} tests/test_integration.cpp)
 
+# ── relocation unit tests (findRelocationOpportunity) ────────────────────────
+add_executable(test_relocation ${CORE_SOURCES} tests/test_relocation.cpp)
+
 target_compile_options(silos PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
     $<$<CXX_COMPILER_ID:MSVC>:/W4>
