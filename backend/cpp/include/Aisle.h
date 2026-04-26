@@ -1,14 +1,15 @@
 #pragma once
 #include "types.h"
 #include "Box.h"
+#include "InputBelt.h"
 #include "Slot.h"
 #include "Shuttle.h"
+#include <map>
 #include <optional>
 #include <queue>
 #include <set>
 #include <unordered_map>
 #include <vector>
-// types.h defines Event; Aisle stores a pointer to the shared event log.
 
 class Aisle {
 public:
@@ -16,74 +17,100 @@ public:
         std::unordered_map<Family, int>      countByFamily;
         std::unordered_map<Family, int>      reservedByFamily;  // pending output instructions
         std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
+        std::unordered_map<Family, Tick>     oldestArrivalByFamily; // earliest arrivalTick stored per family
+        std::unordered_map<Family, float>    avgDistanceByFamily;   // mean |slot.x - port.x| per family
+        std::unordered_map<Family, std::set<int>> levelsByFamily;   // Y-levels that contain boxes of each family
+        std::unordered_map<int, int>         activeShuttlesByLevel; // Y-level → active shuttle count
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;
-        int                                  readyOutputCount = 0; // boxes at port ready for robot
-        int                                  activeShuttles   = 0; // shuttles not idle
+        int                                  readyOutputCount = 0;
+        int                                  activeShuttles   = 0;
     };
 
     struct Instruction {
         enum class Kind { Input, Output };
         Kind                  kind;
-        std::optional<Box>    incomingBox;   // for Input
         std::optional<Family> requestedFam;  // for Output
+        std::string           box_id;        // for Input: specific box id
+        Family                family;        // family for both kinds
         Tick                  issuedAt = 0;
-        int                   priority = 0;  // higher = more urgent
+        int                   priority = 0;
+        int                   seq      = 0;  // arrival sequence number
     };
 
-    // length: number of storage slots (x=0..length-1)
-    // port: single head position shared by input and output (e.g. Position{-1,0})
-    Aisle(int length, int numShuttles, Position port);
+    // length: X storage slots (0..length-1).
+    // numY:   height levels (1..numY); one shuttle per level.
+    // numSides: 1 (Left only) or 2 (Left + Right).
+    // port:   head position shared by all shuttles (port.x used; y/z/side per-shuttle).
+    Aisle(int length, int numY, int numSides, Position port);
 
-    void                input(Box newBox);                 // belt -> aisle
-    void                requestOutput(Family f);           // robot -> aisle (non-blocking)
-    std::optional<Box>  collectReadyOutput(Family f);      // robot collects if available
+    void                input(Box newBox);
+    void                requestOutput(Family f);
+    std::optional<Box>  collectReadyOutput(Family f);
 
-    void                ordenarInstrucciones();            // recalculates priorities
+    void                ordenarInstrucciones();
 
     Metadata            metadata()    const;
     Position            port()        const;
 
-    void                tick();
+    void                connectBelt(InputBelt& belt);
 
+    void                tick();
     void                setEventLog(std::vector<Event>* log);
 
-    // Used by Shuttle to update free-slot index and metadata when placing/taking from storage slots
+    void                assignNextTo(Shuttle& s);
+
     void                notifyBoxPlaced(const Box& b, Position where);
     void                notifyBoxTaken (const Box& b, Position where);
-    // Used by Shuttle when dropping box at port
     void                notifyOutputReady(Box b);
-    // Used by Shuttle (input mission) to get the next box from the input buffer
     std::optional<Box>  takeFromInputBuffer();
 
-    // Slot access by position (storage slots only, indexed by x from 0 to length-1)
     Slot&               slotAt(Position pos);
     const Slot&         slotAt(Position pos) const;
 
-    std::optional<Position> findNearestWithFamily(const Family& f, Position reference) const;
-    // preferNear=true  → smallest x (hot family, fast retrieval)
-    // preferNear=false → largest x  (cold family, out of the way)
-    std::optional<Position> findFreeSlot(bool preferNear) const;
+    void                placeAt(Box box, Position pos);
+
+    const std::vector<Shuttle>& shuttles() const;
+    AisleSnap           snapshot() const;
+
+    // Find the best accessible box of the given family for a specific shuttle.
+    // Cost = dist(shuttle→box) + dist(box→port). Ties broken by largest x (prefer freeing far slots).
+    std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;
+
+    // Find best free slot at level y for input placement using numeric cost function.
+    // Returns {cost, position}; cost is INT_MAX and position is nullopt if no slot exists.
+    std::pair<int, std::optional<Position>> findBestInputSlot(const Box& box, int y) const;
+
+    // Find nearest stored box of family f at Y level y, skipping claimed slots.
+    std::optional<Position> findNearestWithFamily(const Family& f, int y) const;
 
 private:
     int                      length_;
+    int                      numY_;
+    int                      numSides_;
     Position                 port_;
-    std::vector<Slot>        slots_;      // length_ storage slots, slot[i].position() = {i, 0}
-    std::vector<Shuttle>     shuttles_;
+
+    // slots_[side-1][y-1][x]  (side 1-based, y 1-based, x 0-based)
+    std::vector<std::vector<std::vector<Slot>>> slots_;
+
+    std::vector<Shuttle>     shuttles_;         // one per Y level (shuttles_[y-1])
     std::vector<Instruction> instructionQueue_;
+    int                      nextSeq_ = 0;
     Tick                     currentTick_ = 0;
     Metadata                 meta_;
 
-    // Sorted set of free slot x-coordinates: begin()=nearest, rbegin()=farthest
-    std::set<int>            freeSlotXs_;
+    using LevelKey = std::pair<int,int>;  // {side, y}
+    // freeZ1_[{side,y}] = set of x where z1 is free (can accept a new box at z1)
+    std::map<LevelKey, std::set<int>> freeZ1_;
 
-    // Boxes delivered to port, ready for Robot to collect
+    InputBelt*               belt_ = nullptr;
     std::unordered_map<Family, std::queue<Box>> readyOutputs_;
-    // Boxes waiting at port (arrived via input(), waiting for shuttle)
     std::queue<Box>          pendingInputBoxes_;
-    // How many output instructions are in-flight per family
     std::unordered_map<Family, int> outputReservedByFamily_;
+    std::unordered_map<Family, Tick> oldestArrivalByFamily_;
+    // slots claimed by an in-flight input mission, keyed by {side, y} → set of x
+    std::map<LevelKey, std::set<int>> claimedInputSlots_;
     std::vector<Event>*             eventLog_ = nullptr;
 
     void assignInstructions();

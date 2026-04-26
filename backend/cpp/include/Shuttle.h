@@ -11,7 +11,9 @@ public:
 
     explicit Shuttle(Position startPos);
 
+    // Getters
     Position    position()    const;
+    int         yLevel()      const;   // fixed Y level (pos_.y); never changes
     bool        isFree()      const;   // true when Phase::Idle
     bool        isOnMission() const;
     Phase       phase()       const;
@@ -28,9 +30,13 @@ private:
     Position           pos_;
     Phase              phase_ = Phase::Idle;
     std::optional<Box> carried_;
-    Position           pickup_{0, 0};
-    Position           drop_{0, 0};
+    Position           pickup_{};
+    Position           drop_{};
     bool               isInputMission_ = false;
 
+    static constexpr int MANIPULATION_TICKS = 10;
+
     void moveToward(Position target);
+
+    int manipulationTimer_ = 0;
 };

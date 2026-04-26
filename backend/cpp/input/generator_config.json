@@ -1,0 +1,37 @@
+{
+  "num_boxes": 500,
+  "num_destinations": 23,
+  "seed": 42,
+  "mean_inter_arrival_ticks": 3.6,
+  "std_inter_arrival_ticks": 0.072,
+  "demand_profile": [
+    { "from_tick":    0, "to_tick":  3600, "rate_multiplier": 1.0 },
+    { "from_tick": 3600, "to_tick":  3960, "rate_multiplier": 5.0 },
+    { "from_tick": 3960, "to_tick": 99999, "rate_multiplier": 1.0 }
+  ],
+  "weights": {
+    "zara_es":          8.0,
+    "zara_fr":          6.0,
+    "zara_de":          5.0,
+    "zara_uk":          5.0,
+    "zara_it":          3.5,
+    "zara_pt":          2.5,
+    "bershka_es":       3.5,
+    "bershka_fr":       2.5,
+    "bershka_de":       2.0,
+    "bershka_uk":       2.0,
+    "stradivarius_es":  3.0,
+    "stradivarius_fr":  2.0,
+    "stradivarius_de":  1.5,
+    "pull_bear_es":     2.5,
+    "pull_bear_fr":     1.5,
+    "pull_bear_de":     1.0,
+    "massimo_dutti_es": 1.5,
+    "massimo_dutti_fr": 1.0,
+    "oysho_es":         1.0,
+    "oysho_fr":         0.7,
+    "zara_home_es":     1.2,
+    "zara_home_fr":     0.8,
+    "lefties_es":       1.0
+  }
+}

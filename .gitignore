@@ -35,3 +35,17 @@ silos
 Thumbs.db
 desktop.ini
 
+# Frontend (Next.js)
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env*.local
+
+# Backend env
+backend/python/.env
+
+# Python
+backend/python/.venv/
+backend/python/__pycache__/
+backend/python/routers/__pycache__/
+
