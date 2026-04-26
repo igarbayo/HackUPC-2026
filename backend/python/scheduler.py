@@ -1,6 +1,8 @@
 """Thin wrapper around the compiled C++ scheduler_cpp extension."""
 from __future__ import annotations
 import csv as _csv
+import io as _io
+import uuid as _uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +18,9 @@ _SILO_NUM_SIDES  = 2
 
 _silo_csv_path: Path | None = None
 _silo_boxes: list | None = None
+
+# ── Uploaded CSV store (csv_id → {topology, boxes}) ──────────────────────────
+_csv_store: dict[str, dict] = {}
 
 
 def set_silo_csv(path: str | None) -> None:
@@ -81,6 +86,58 @@ def parse_silo_csv() -> list:
     return _silo_boxes
 
 
+def store_csv(content: str) -> tuple[str, dict]:
+    """Parse CSV text, store pre-placed boxes, return (csv_id, topology)."""
+    result = []
+    max_aisle = 0
+    max_side  = 0
+    max_x     = 0
+    max_y     = 0
+
+    for row in _csv.DictReader(_io.StringIO(content)):
+        p        = row["posicion"].strip()
+        etiqueta = row["etiqueta"].strip()
+        if len(p) != 11:
+            continue
+        aisle_1 = int(p[0:2])
+        side     = int(p[2:4])
+        x_1      = int(p[4:7])
+        y        = int(p[7:9])
+        z        = int(p[9:11])
+        max_aisle = max(max_aisle, aisle_1)
+        max_side  = max(max_side, side)
+        max_x     = max(max_x, x_1)
+        max_y     = max(max_y, y)
+        if not etiqueta:
+            continue
+        family = etiqueta[7:15]
+        box    = scheduler_cpp.Box(etiqueta, family, 0)
+        pos    = scheduler_cpp.Position()
+        pos.x  = x_1 - 1   # 1-based → 0-based
+        pos.y  = y
+        pos.z  = z
+        pos.side = side
+        pb          = scheduler_cpp.PrePlacedBox()
+        pb.box      = box
+        pb.aisle_idx = aisle_1 - 1  # 1-based → 0-based
+        pb.pos      = pos
+        result.append(pb)
+
+    topology = {
+        "num_aisles": max_aisle,
+        "num_sides":  max_side,
+        "num_slots":  max_x,
+        "num_y":      max_y,
+    }
+    csv_id = str(_uuid.uuid4())
+    _csv_store[csv_id] = {"topology": topology, "boxes": result}
+    return csv_id, topology
+
+
+def get_csv_data(csv_id: str) -> dict | None:
+    return _csv_store.get(csv_id)
+
+
 from models import (
     AisleStateModel,
     BoxModel,
@@ -104,6 +161,7 @@ def build_cpp_params(
     num_slots: int,
     num_y: int,
     num_sides: int,
+    num_robots: int,
     max_ticks: int,
     boxes: list[scheduler_cpp.Box] | None = None,
 ) -> scheduler_cpp.Params:
@@ -112,7 +170,7 @@ def build_cpp_params(
     p.num_slots = num_slots
     p.num_y = num_y
     p.num_sides = num_sides
-    p.num_robots = 1
+    p.num_robots = num_robots
     p.max_ticks = max_ticks
     if boxes:
         p.boxes = boxes
@@ -225,6 +283,8 @@ def submit(sim_id: str, params: scheduler_cpp.Params) -> None:
         try:
             scheduler_cpp.run_simulation_streaming(params, queue)
         except Exception:
+            import traceback
+            traceback.print_exc()
             store.simulations[sim_id].status = "error"
             store.simulations[sim_id].finished_at = datetime.now(timezone.utc)
         finally:

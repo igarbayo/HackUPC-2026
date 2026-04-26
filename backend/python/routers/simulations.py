@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 import scheduler_cpp
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, UploadFile, File, status
 from fastapi.responses import JSONResponse
 
 import scheduler as sched
@@ -41,18 +41,31 @@ def _build_cpp_params(params: SimulationParams) -> scheduler_cpp.Params:
             gp.demand_profile.append(d)
         boxes = sched.generate_boxes(gp)
 
-    topo = sched.get_silo_topology()
+    # Priority: uploaded csv_id > global silo csv > params
+    csv_data = sched.get_csv_data(params.csv_id) if params.csv_id else None
+    topo     = csv_data["topology"] if csv_data else sched.get_silo_topology()
+
     cpp_params = sched.build_cpp_params(
         num_aisles=topo["num_aisles"] if topo else params.num_aisles,
         num_slots=topo["num_slots"]   if topo else params.num_slots,
         num_y=topo["num_y"]           if topo else params.num_y,
         num_sides=topo["num_sides"]   if topo else params.num_sides,
+        num_robots=params.num_robots,
         max_ticks=params.max_ticks,
         boxes=boxes if boxes else None,
     )
-    if topo:
+    if csv_data:
+        cpp_params.initial_boxes = csv_data["boxes"]
+    elif topo:
         cpp_params.initial_boxes = sched.parse_silo_csv()
     return cpp_params
+
+
+@router.post("/parse-csv")
+async def parse_csv(file: UploadFile = File(...)):
+    content = (await file.read()).decode("utf-8")
+    csv_id, topology = sched.store_csv(content)
+    return {"csv_id": csv_id, **topology}
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)

@@ -59,7 +59,7 @@ export default function PanelConfiguracion({ cfg, setCfg, apiUrl, setApiUrl }: P
           width: 6, height: 6, borderRadius: '50%',
           background: apiUrl ? '#22c55e' : '#e0e0e0',
         }} />
-        <span style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888' }}>
+        <span style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555' }}>
           {apiUrl ? 'Conectado a API externa' : 'Usando datos simulados'}
         </span>
       </div>
@@ -109,7 +109,7 @@ export default function PanelConfiguracion({ cfg, setCfg, apiUrl, setApiUrl }: P
       <CfgToggle label="Niebla de fondo" value={fogOn}    onChange={setFogOn}    />
 
       <Hr my={20} />
-      <div style={T.micro}>v1.0 · SILOS Logistics Viewer</div>
+      <div style={T.micro}>v1.0 · XEITECH Logistics Viewer</div>
     </div>
   )
 }

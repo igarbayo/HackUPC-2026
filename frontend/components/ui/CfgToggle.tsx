@@ -15,7 +15,7 @@ export default function CfgToggle({ label, value, onChange }: CfgToggleProps) {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       paddingBottom: 12, marginBottom: 12, borderBottom: '1px solid #f4f4f4',
     }}>
-      <span style={{ ...T.label, color: '#666' }}>{label}</span>
+      <span style={{ ...T.label, color: '#444' }}>{label}</span>
       <Toggle value={value} onChange={onChange} />
     </div>
   )
