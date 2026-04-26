@@ -29,6 +29,9 @@ public:
     void    onBoxDelivered(Box b);
     Pallet  dispatchPallet(int slotIndex);
 
+    int     dispatchedPallets() const;
+    int     dispatchedBoxes()   const;
+
     void    setEventLog(std::vector<Event>* log);
     void    setCurrentTick(Tick t);
     void    setRobotId(int id);
