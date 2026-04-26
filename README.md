@@ -11,6 +11,8 @@ clean, testable event log — separated from wall-clock time — so that operato
 can explore "what-if" scenarios faster than real time and rewind to inspect
 decisions.
 
+![XEITECH demo](frontend/public/demo.png)
+
 ---
 
 ## Pipeline overview
@@ -60,7 +62,7 @@ CSV file / live parameters
 - Controllable virtual clock: speed up, slow down, pause, or resume mid-simulation.
 - Configurable parameters: number of aisles, shuttle count, robot speed, pallet
   capacity, input rate, and more.
-- Docker Compose single-command deployment — no local C++ toolchain required.
+- Docker Compose deployment — build once with CMake, then run the full stack with a single command.
 - CSV input support: provide your own box inventory or use the bundled sample data.
 
 ---
@@ -69,11 +71,17 @@ CSV file / live parameters
 
 ### Option A — Docker Compose (recommended)
 
-Requires Docker 24+ and Docker Compose v2.
+Requires CMake 3.14+, a C++17 compiler, Docker 24+, and Docker Compose v2.
+
+The Docker image builds the pybind11 module inside the container, so you must
+compile the C++ engine with CMake first so that the shared library is available
+when the image is assembled:
 
 ```bash
 git clone https://github.com/igarbayo/HackUPC-2026.git
 cd HackUPC-2026
+cmake -S backend/cpp -B backend/cpp/build
+cmake --build backend/cpp/build
 docker compose up
 ```
 

@@ -20,7 +20,7 @@ Instead, contact the maintainers directly by email:
 
 - Ignacio Garbayo — iggarbayo@gmail.com
 - Anton Gomez — antongomez03@gmail.com
-- Yago Flagueras — yagofc03@gmail.com
+- Yago Falgueras — yagofc03@gmail.com
 - Carlos Cao — caolopezcarlos@gmail.com
 
 You can email one or all of them. Use the subject line:

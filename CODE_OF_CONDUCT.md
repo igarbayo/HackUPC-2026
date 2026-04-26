@@ -43,7 +43,7 @@ Contact any of the maintainers:
 
 - Ignacio Garbayo — iggarbayo@gmail.com
 - Anton Gomez — antongomez03@gmail.com
-- Yago Flagueras — yagofc03@gmail.com
+- Yago Falgueras — yagofc03@gmail.com
 - Carlos Cao — caolopezcarlos@gmail.com
 
 Reports will be acknowledged within **48 hours**. All reports are kept

@@ -25,7 +25,7 @@ All four founding members are maintainers with equal standing:
 |---|---|
 | Ignacio Garbayo | iggarbayo@gmail.com |
 | Anton Gomez | antongomez03@gmail.com |
-| Yago Flagueras | yagofc03@gmail.com |
+| Yago Falgueras | yagofc03@gmail.com |
 | Carlos Cao | caolopezcarlos@gmail.com |
 
 ### Contributor
