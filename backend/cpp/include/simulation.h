@@ -26,7 +26,7 @@ struct Params {
     int  num_robots        = 2;          // number of independent robot arms
     int  max_ticks         = 10000;
     Tick        input_phase_ticks = UINT64_MAX;       // belt stops after this tick; drain continues
-    std::string heuristic_name   = "stock_proximity"; // robot scoring heuristic
+    std::string heuristic_name   = "auto"; // "auto" picks stock_proximity(1 robot) or coop(≥2)
     uint64_t    heuristic_seed   = 42;                // seed forwarded to RandomHeuristic
 };
 

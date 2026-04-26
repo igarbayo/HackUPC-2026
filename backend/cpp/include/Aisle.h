@@ -19,6 +19,8 @@ public:
         std::unordered_map<Family, Position> nearestByFamily;   // nearest to port
         std::unordered_map<Family, Tick>     oldestArrivalByFamily; // earliest arrivalTick stored per family
         std::unordered_map<Family, float>    avgDistanceByFamily;   // mean |slot.x - port.x| per family
+        std::unordered_map<Family, std::set<int>> levelsByFamily;   // Y-levels that contain boxes of each family
+        std::unordered_map<int, int>         activeShuttlesByLevel; // Y-level → active shuttle count
         int                                  freeSlots        = 0;
         int                                  pendingInputs    = 0;
         int                                  pendingOutputs   = 0;

@@ -16,6 +16,8 @@ from collections import defaultdict
 
 RUN_COLUMNS = [
     ("rate_boxes_per_hour",      "rate/hr",          ".0f"),
+    ("pre_populated",            "pre_pop",          "b"),
+    ("num_robots",               "robots",           "d"),
     ("heuristic",                "heuristic",        "s"),
     ("seed",                     "seed",             "d"),
     ("total_pallets_sent",       "pallets",          "d"),
@@ -25,6 +27,7 @@ RUN_COLUMNS = [
     ("avg_pallet_capacity",      "avg_cap",          ".3f"),
     ("ticks_per_filled_pallet",  "ticks/filled_pal", ".1f"),
     ("finish_tick",              "finish_tick",      "d"),
+    ("occupation_pct",           "occ_%",            ".1f"),
 ]
 
 # ── aggregate table columns ──────────────────────────────────────────────────
@@ -46,6 +49,8 @@ def load(source) -> list:
 def fmt(val, spec):
     if spec == "s":
         return str(val)
+    if spec == "b":
+        return "yes" if val else "no"
     if spec in (".1f", ".3f") and val == 0.0:
         return "--"       # sentinel: metric undefined (e.g. no filled pallets)
     return format(val, spec)
@@ -84,15 +89,16 @@ def main():
     table   = [[fmt(row.get(k, ""), s) for k, s in zip(keys, specs)] for row in rows]
     print_table(headers, table, specs)
 
-    # ── aggregate by (rate, heuristic) across seeds ──────────────────────────
+    # ── aggregate by (rate, pre_populated, num_robots, heuristic) across seeds ─
     groups = defaultdict(list)
     for row in rows:
-        groups[(row["rate_boxes_per_hour"], row["heuristic"])].append(row)
+        groups[(row["rate_boxes_per_hour"], row["pre_populated"],
+                row["num_robots"], row["heuristic"])].append(row)
 
     # Build aggregate rows, then split by rate
     agg_by_rate = defaultdict(list)
-    for (rate, heuristic), group in groups.items():
-        row_vals = [fmt(rate, ".0f"), heuristic]
+    for (rate, pre_pop, num_robots, heuristic), group in groups.items():
+        row_vals = [fmt(rate, ".0f"), fmt(num_robots, "d"), heuristic]
         sort_key = None
         for key, _, spec in AGG_METRICS:
             vals = [r[key] for r in group]
@@ -100,16 +106,16 @@ def main():
             row_vals.append(fmt(avg, spec))
             if key == "ticks_per_filled_pallet":
                 sort_key = avg  # 0.0 = undefined; sort those last
-        agg_by_rate[rate].append((sort_key, row_vals))
+        agg_by_rate[rate].append((pre_pop, num_robots, sort_key, row_vals))
 
-    agg_headers = ["rate/hr", "heuristic"] + [c[1] for c in AGG_METRICS]
+    agg_headers = ["rate/hr", "robots", "heuristic"] + [c[1] for c in AGG_METRICS]
 
     print()
     for rate in sorted(agg_by_rate.keys()):
         entries = agg_by_rate[rate]
-        # Sort by ticks_per_filled_pallet ascending; undefined (0.0) goes last
-        entries.sort(key=lambda x: (x[0] == 0.0, x[0]))
-        agg_rows = [e[1] for e in entries]
+        # Sort by pre_populated, then num_robots, then ticks_per_filled_pallet ascending
+        entries.sort(key=lambda x: (x[0], x[1], x[2] == 0.0, x[2]))
+        agg_rows = [e[3] for e in entries]
         print(f"Averages across seeds — rate {rate:.0f} boxes/hr:")
         print_table(agg_headers, agg_rows, [])
         print()

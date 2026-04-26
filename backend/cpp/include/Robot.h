@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Robot {
@@ -19,9 +20,9 @@ public:
     using Request = std::unordered_map<Family, int>;
 
     // Reads metadata, decides which families to request output for and how many.
-    Request decide(const Aisle::Metadata& meta);
+    Request decide(const Aisle::Metadata& meta, const RobotContext& ctx);
     // Full tick: collect ready outputs, decide, make requests.
-    void    tick(AisleContainer& container);
+    void    tick(AisleContainer& container, const std::unordered_set<Family>& otherClaims);
 
     const std::array<std::optional<Pallet>, MAX_ACTIVE_PALLETS>& pallets() const;
 

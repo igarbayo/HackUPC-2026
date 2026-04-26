@@ -481,6 +481,8 @@ void Aisle::updateMeta() {
     meta_.countByFamily.clear();
     meta_.nearestByFamily.clear();
     meta_.avgDistanceByFamily.clear();
+    meta_.levelsByFamily.clear();
+    meta_.activeShuttlesByLevel.clear();
     meta_.freeSlots = 0;
 
     std::unordered_map<Family, int> distSum;
@@ -497,6 +499,7 @@ void Aisle::updateMeta() {
                     int dist = std::abs(x - port_.x);
                     distSum[f]   += dist;
                     distCount[f] += 1;
+                    meta_.levelsByFamily[f].insert(y);
                     auto nearIt = meta_.nearestByFamily.find(f);
                     Position p{x, y, 1, s};
                     if (nearIt == meta_.nearestByFamily.end()) {
@@ -511,6 +514,7 @@ void Aisle::updateMeta() {
                     ++meta_.countByFamily[f];
                     distSum[f]   += std::abs(x - port_.x);
                     distCount[f] += 1;
+                    meta_.levelsByFamily[f].insert(y);
                 }
                 if (slot.isEmpty()) ++meta_.freeSlots;
             }
@@ -534,8 +538,12 @@ void Aisle::updateMeta() {
         meta_.readyOutputCount += static_cast<int>(q.size());
 
     meta_.activeShuttles = 0;
-    for (const auto& shuttle : shuttles_)
-        if (!shuttle.isFree()) ++meta_.activeShuttles;
+    for (int y = 1; y <= numY_; ++y) {
+        if (!shuttles_[y - 1].isFree()) {
+            ++meta_.activeShuttles;
+            meta_.activeShuttlesByLevel[y] = 1;
+        }
+    }
 
     meta_.reservedByFamily = outputReservedByFamily_;
 }

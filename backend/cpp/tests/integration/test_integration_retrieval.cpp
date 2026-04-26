@@ -36,9 +36,9 @@ static void setupState(Aisle& aisle) {
     {
         Box a1 = makeBox("A1", "A");
         Box a2 = makeBox("A2", "A");
+        aisle.slotAt({1,1,1,1}).placeZ2(a2);
         aisle.slotAt({1,1,1,1}).place(a1);
         aisle.notifyBoxPlaced(a1, {1,1,1,1});
-        aisle.slotAt({1,1,1,1}).placeZ2(a2);
     }
     // x=2: z1=B2, z2=empty
     {
@@ -46,23 +46,19 @@ static void setupState(Aisle& aisle) {
         aisle.slotAt({2,1,1,1}).place(b2);
         aisle.notifyBoxPlaced(b2, {2,1,1,1});
     }
-    // x=3: z1=empty, z2=A3  (dummy trick: place dummy, add A3 to z2, remove dummy)
+    // x=3: z1=empty, z2=A3
     {
-        Box dummy = makeBox("_dx3_", "_block_");
         Box a3    = makeBox("A3", "A");
-        aisle.slotAt({3,1,1,1}).place(dummy);
-        aisle.notifyBoxPlaced(dummy, {3,1,1,1});
         aisle.slotAt({3,1,1,1}).placeZ2(a3);
-        Box taken = aisle.slotAt({3,1,1,1}).take();
-        aisle.notifyBoxTaken(taken, {3,1,1,1});
+        aisle.notifyBoxPlaced(a3, {3,1,2,1});
     }
-    // x=4: z1=A4, z2=B1  (A in front of B; placeZ2 valid because z1 occupied)
+    // x=4: z1=A4, z2=B1  (A in front of B)
     {
         Box a4 = makeBox("A4", "A");
         Box b1 = makeBox("B1", "B");
+        aisle.slotAt({4,1,1,1}).placeZ2(b1);
         aisle.slotAt({4,1,1,1}).place(a4);
         aisle.notifyBoxPlaced(a4, {4,1,1,1});
-        aisle.slotAt({4,1,1,1}).placeZ2(b1);
     }
 }
 

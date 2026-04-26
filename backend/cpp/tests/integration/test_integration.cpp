@@ -39,7 +39,7 @@ void test_decide_picks_dominant_family() {
     meta.avgDistanceByFamily["A"] = 3.0f;
     meta.avgDistanceByFamily["B"] = 1.0f;  // closer but count too low
 
-    auto req = robot.decide(meta);
+    auto req = robot.decide(meta, RobotContext{});
 
     assert( req.count("A") && "A meets threshold — must be requested");
     assert(!req.count("B") && "B is below threshold — must not be requested");
@@ -66,7 +66,7 @@ void test_decide_score_selects_better_family() {
     meta.countByFamily["B"]       = Robot::OPEN_THRESHOLD;
     meta.avgDistanceByFamily["B"] = 9.0f;
 
-    auto req = robot.decide(meta);
+    auto req = robot.decide(meta, RobotContext{});
 
     assert( req.count("A") && "A has better score — must get the free slot");
     assert(!req.count("B") && "B has worse score — must not get the free slot");
@@ -174,7 +174,7 @@ void test_full_pipeline_dominant_family_fills_pallet() {
     for (int t = 1; t <= 1000 && !aPalletOpen; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
-        robot.tick(aisle);
+        robot.tick(aisle, {});
         for (const auto& p : robot.pallets())
             if (p && p->family() == "A" && p->placedCount() > 0) { aPalletOpen = true; break; }
     }
@@ -211,7 +211,7 @@ void test_full_pipeline_event_order_on_dispatch() {
     for (int t = 1; t <= 2000 && !dispatched; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
-        robot.tick(aisle);
+        robot.tick(aisle, {});
         for (const auto& e : log)
             if (e.type == "pallet_dispatched" && e.family == "A") { dispatched = true; break; }
     }

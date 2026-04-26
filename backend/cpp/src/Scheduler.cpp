@@ -1,4 +1,5 @@
 #include "Scheduler.h"
+#include <unordered_set>
 
 Scheduler::Scheduler(AisleContainer& container, std::vector<Robot>& robots, InputBelt& belt,
                      std::vector<Event>* log)
@@ -21,10 +22,16 @@ void Scheduler::activate() {
         container_.input(std::move(*box));
     }
 
-    // 2. Each robot ticks
-    for (auto& robot : robots_) {
-        robot.setCurrentTick(tick_);
-        robot.tick(container_);
+    // 2. Each robot ticks — build per-robot otherClaims from sibling pallets
+    for (int i = 0; i < (int)robots_.size(); ++i) {
+        std::unordered_set<Family> otherClaims;
+        for (int j = 0; j < (int)robots_.size(); ++j) {
+            if (j == i) continue;
+            for (const auto& p : robots_[j].pallets())
+                if (p) otherClaims.insert(p->family());
+        }
+        robots_[i].setCurrentTick(tick_);
+        robots_[i].tick(container_, otherClaims);
     }
 
     // 3. Aisle tick (reorder instructions, advance shuttles)

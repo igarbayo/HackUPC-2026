@@ -116,8 +116,8 @@ void test_findBestBox_single_box() {
 //   shuttle at x=0 → must return x=4
 void test_findBestBox_blocked_z2_skipped() {
     Aisle aisle = emptyAisle(5);
-    aisle.slotAt(slotPos(0)).place(makeBox("g1", "G"));
-    aisle.slotAt(slotPos(0)).placeZ2(makeBox("f1", "F"));  // F is blocked
+    aisle.slotAt(slotPos(0)).placeZ2(makeBox("f1", "F"));  // F at z2
+    aisle.slotAt(slotPos(0)).place(makeBox("g1", "G"));    // G at z1 (blocks F)
     aisle.slotAt(slotPos(4)).place(makeBox("f2", "F"));    // F is accessible
 
     auto result = aisle.findBestBoxForShuttle("F", shuttleAt(0));
@@ -127,15 +127,13 @@ void test_findBestBox_blocked_z2_skipped() {
 }
 
 // z2 is accessible when z1 is empty.
-// Simulate: place G at z1, place F at z2, take G (leaves F alone at z2).
+// Simulate: place F at z2 (directly accessible since z1 is empty).
 //
 //   x=0: z1=empty, z2=F  →  directly accessible
 //   shuttle at x=0 → should return x=0, z=2
 void test_findBestBox_accessible_z2_returned() {
     Aisle aisle = emptyAisle(5);
-    aisle.slotAt(slotPos(0)).place(makeBox("tmp", "G"));    // occupy z1
-    aisle.slotAt(slotPos(0)).placeZ2(makeBox("f1", "F"));  // F at z2
-    aisle.slotAt(slotPos(0)).take();                        // remove z1 → z2 now accessible
+    aisle.slotAt(slotPos(0)).placeZ2(makeBox("f1", "F"));  // F at z2 (z1 is empty)
 
     auto result = aisle.findBestBoxForShuttle("F", shuttleAt(0));
     assert(result.has_value() && "F at z2 should be accessible");
@@ -155,9 +153,9 @@ void test_findBestBox_accessible_z2_returned() {
 void test_findBestBox_prefers_full_cell() {
     Aisle aisle = emptyAisle(5);
 
-    // x=2: full cell — z1=F, z2=G
-    aisle.slotAt(slotPos(2)).place(makeBox("f1", "F"));
+    // x=2: full cell — z1=F, z2=G (must place z2 then z1)
     aisle.slotAt(slotPos(2)).placeZ2(makeBox("g1", "G"));
+    aisle.slotAt(slotPos(2)).place(makeBox("f1", "F"));
 
     // x=3: lone z1=F
     aisle.slotAt(slotPos(3)).place(makeBox("f2", "F"));

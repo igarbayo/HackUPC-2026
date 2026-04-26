@@ -5,7 +5,7 @@
 
 // ── decide ────────────────────────────────────────────────────────────────────
 
-Robot::Request Robot::decide(const Aisle::Metadata& meta) {
+Robot::Request Robot::decide(const Aisle::Metadata& meta, const RobotContext& ctx) {
     Request req;
 
     // ── Part 1: existing pallets — bulk-request up to freeSlots ──────────────
@@ -36,7 +36,7 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
 
         if (available < OPEN_THRESHOLD) continue;
 
-        candidates.push_back({family, heuristic_->score(family, meta), available});
+        candidates.push_back({family, heuristic_->score(family, meta, ctx), available});
     }
 
     // Fallback: if no family passed the threshold but boxes exist, bypass it.
@@ -47,7 +47,7 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
             if (count == 0) continue;
             int available = count - getInFlight(meta, family);
             if (available <= 0) continue;
-            candidates.push_back({family, heuristic_->score(family, meta), available});
+            candidates.push_back({family, heuristic_->score(family, meta, ctx), available});
         }
     }
 
@@ -66,7 +66,7 @@ Robot::Request Robot::decide(const Aisle::Metadata& meta) {
 
 // ── tick ──────────────────────────────────────────────────────────────────────
 
-void Robot::tick(AisleContainer& container) {
+void Robot::tick(AisleContainer& container, const std::unordered_set<Family>& otherClaims) {
     // Snapshot metadata before collecting so onBoxDelivered has it for eviction
     lastMeta_ = container.metadata();
 
@@ -112,7 +112,11 @@ void Robot::tick(AisleContainer& container) {
     }
 
     // 3. Decide and request (fresh metadata post-collect)
-    Request req = decide(meta);
+    RobotContext ctx;
+    ctx.otherClaims = otherClaims;
+    for (const auto& p : pallets_)
+        if (p) ctx.ownClaims.insert(p->family());
+    Request req = decide(meta, ctx);
 
     for (const auto& [family, count] : req) {
         for (int i = 0; i < count; ++i) {

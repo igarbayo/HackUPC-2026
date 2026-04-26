@@ -24,6 +24,9 @@ add_executable(silos ${CORE_SOURCES} src/main.cpp)
 
 # ── benchmark binary ─────────────────────────────────────────────────────────
 add_executable(bench ${CORE_SOURCES} src/benchmark.cpp src/benchmark_main.cpp)
+target_compile_definitions(bench PRIVATE
+    SILO_CSV_PATH="${CMAKE_CURRENT_SOURCE_DIR}/data/silo-semi-empty.csv"
+)
 
 # ── unit tests ────────────────────────────────────────────────────────────────
 add_executable(test_aisle          ${CORE_SOURCES} tests/test_aisle.cpp)

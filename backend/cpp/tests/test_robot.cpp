@@ -143,7 +143,7 @@ void test_tick_integration_with_aisle() {
     for (int t = 1; t <= 200 && !received; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
-        robot.tick(aisle);
+        robot.tick(aisle, {});
 
         for (const auto& p : robot.pallets()) {
             if (p && p->family() == "X" && p->placedCount() > 0) {
@@ -202,7 +202,7 @@ void test_drain_dispatch_on_empty_aisle() {
     for (; t <= 400 && !palletOpen; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
-        robot.tick(aisle);
+        robot.tick(aisle, {});
         for (const auto& p : robot.pallets())
             if (p && p->family() == "A" && p->placedCount() > 0) { palletOpen = true; break; }
     }
@@ -213,7 +213,7 @@ void test_drain_dispatch_on_empty_aisle() {
     for (; t <= 1000 && !dispatched; ++t) {
         robot.setCurrentTick(t);
         aisle.tick();
-        robot.tick(aisle);
+        robot.tick(aisle, {});
 
         // All pallet slots should be empty once drain fires
         bool anyOpen = false;
@@ -239,7 +239,7 @@ void test_bulk_request_pipelining() {
         Aisle::Metadata meta;
         meta.countByFamily["A"] = 5;  // 5 available, none in-flight
 
-        auto req = robot.decide(meta);
+        auto req = robot.decide(meta, RobotContext{});
         assert(req.count("A")    && "A must appear in request");
         assert(req.at("A") == 5  && "all 5 available boxes must be requested in one call");
     }
@@ -253,7 +253,7 @@ void test_bulk_request_pipelining() {
         Aisle::Metadata meta;
         meta.countByFamily["A"] = 5;  // 5 available but pallet only has 1 slot
 
-        auto req = robot.decide(meta);
+        auto req = robot.decide(meta, RobotContext{});
         assert(req.count("A")    && "A must appear in request");
         assert(req.at("A") == 1  && "request must be capped at freeSlots (1)");
     }
@@ -283,7 +283,7 @@ void test_threshold_blocks_high_score_low_count_family() {
     meta.avgDistanceByFamily["X"] = 0.0f;
     meta.avgDistanceByFamily["Y"] = 10.0f;
 
-    auto req = robot.decide(meta);
+    auto req = robot.decide(meta, RobotContext{});
 
     assert(!req.count("X") && "X has fewer boxes than OPEN_THRESHOLD — must not get the free slot");
     assert( req.count("Y") && "Y meets OPEN_THRESHOLD and must get the free slot");
@@ -319,7 +319,7 @@ void test_eviction_uses_aisle_metadata() {
 
     // One tick populates lastMeta_ — A's combined score becomes placed(1)+inAisle(5)=6
     robot.setCurrentTick(1);
-    robot.tick(aisle);
+    robot.tick(aisle, {});
 
     // Trigger forced eviction: all 4 slots occupied, E needs a new slot
     robot.onBoxDelivered(makeBox("e1", "E"));
@@ -359,7 +359,7 @@ void test_score_prefers_nearby_family() {
     meta.avgDistanceByFamily["X"] = 10.0f;
     meta.avgDistanceByFamily["Y"] =  1.0f;
 
-    auto req = robot.decide(meta);
+    auto req = robot.decide(meta, RobotContext{});
 
     assert( req.count("Y") && "Y has better score (nearby) — must get the only free slot");
     assert(!req.count("X") && "X has worse score (far away) — must not get the free slot");
@@ -395,7 +395,7 @@ void test_exhausted_families_dispatched_on_tick() {
 
     // One robot tick: A/B/C/D exhausted → dispatched, X gets a slot
     robot.setCurrentTick(101);
-    robot.tick(aisle);
+    robot.tick(aisle, {});
 
     const auto& pallets = robot.pallets();
     bool hasA = false, hasB = false, hasC = false, hasD = false, hasX = false;

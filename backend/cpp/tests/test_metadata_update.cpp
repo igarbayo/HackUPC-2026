@@ -18,12 +18,9 @@ static Aisle makeAisle(int length) {
 // Trigger a metadata refresh: tick with no belt, empty queues, idle shuttles.
 static void refreshMeta(Aisle& a) { a.tick(); }
 
-// Make z2 at slot x accessible: place a temporary z1 box, placeZ2 the real box,
-// then take the z1 box away.
+// Make z2 at slot x accessible: place it directly while z1 is empty.
 static void placeAccessibleZ2(Aisle& a, int x, Box real) {
-    a.slotAt(pos(x)).place(makeBox("_tmp_", "_tmp_"));
     a.slotAt(pos(x)).placeZ2(std::move(real));
-    a.slotAt(pos(x)).take();  // z2 is now directly accessible
 }
 
 // ── countByFamily — placement ─────────────────────────────────────────────────
@@ -75,8 +72,8 @@ void test_count_accessible_z2_counted() {
 // This documents the current metadata semantics: count = accessible boxes only.
 void test_count_blocked_z2_not_counted() {
     Aisle a = makeAisle(5);
-    a.slotAt(pos(2)).place(makeBox("b1", "A"));    // z1
-    a.slotAt(pos(2)).placeZ2(makeBox("b2", "A"));  // z2 blocked behind z1
+    a.slotAt(pos(2)).placeZ2(makeBox("b2", "A"));  // z2 (back)
+    a.slotAt(pos(2)).place(makeBox("b1", "A"));    // z1 (front)
     refreshMeta(a);
     assert(a.metadata().countByFamily.at("A") == 1);  // only z1 counted
 }
@@ -112,8 +109,8 @@ void test_count_entry_removed_when_last_box_gone() {
 // Then taking z2 drops count to 0.
 void test_count_z1_then_accessible_z2_retrieval() {
     Aisle a = makeAisle(5);
-    a.slotAt(pos(2)).place(makeBox("b1", "A"));    // z1
-    a.slotAt(pos(2)).placeZ2(makeBox("b2", "A"));  // z2 (blocked)
+    a.slotAt(pos(2)).placeZ2(makeBox("b2", "A"));  // z2 first
+    a.slotAt(pos(2)).place(makeBox("b1", "A"));    // z1 (blocks z2)
     refreshMeta(a);
     assert(a.metadata().countByFamily.at("A") == 1);  // z1 visible
 

@@ -18,27 +18,44 @@ int main(int argc, char** argv) {
     }
 
     // Benchmark grid
-    const std::vector<double>      rates      = {1000.0, 400.0};
-    const std::vector<uint64_t>    seeds      = {42, 123, 777};
-    const std::vector<std::string> heuristics = {"stock_proximity", "largest_stock",
-                                                  "nearest", "random"};
-    const Tick phase = 1 * 3600;  // 1-hour working shift; belt feeds throughout
+    const std::vector<double>      rates        = {1000.0};
+    const std::vector<uint64_t>    seeds        = {42, 123, 777};
+    const std::vector<int>         robot_counts = {1, 2};
+    const std::vector<std::string> heuristics_1 = {"stock_proximity", "largest_stock",
+                                                    "nearest", "random"};
+    const std::vector<std::string> heuristics_2 = {"stock_proximity", "largest_stock",
+                                                    "nearest", "random", "coop"};
+    const Tick        phase = 1 * 3600;  // 1-hour working shift; belt feeds throughout
+    const std::string csv   = SILO_CSV_PATH;
 
-    // Flatten configs
+    // Standard silo dimensions (must match the CSV layout)
+    constexpr int SILO_AISLES = 4;
+    constexpr int SILO_SLOTS  = 60;
+    constexpr int SILO_Y      = 8;
+    constexpr int SILO_SIDES  = 2;
+
+    // Flatten configs — all runs use the pre-populated silo
     std::vector<BenchmarkConfig> configs;
-    for (double rate : rates) {
-        for (uint64_t seed : seeds) {
-            for (const auto& heuristic : heuristics) {
-                BenchmarkConfig cfg;
-                cfg.rate_boxes_per_hour = rate;
-                cfg.cv                  = 0.3;
-                cfg.input_phase_ticks   = phase;
-                cfg.num_destinations    = 20;
-                cfg.seed                = seed;
-                cfg.heuristic           = heuristic;
-                cfg.num_robots          = 1;
-                cfg.num_aisles          = 1;
-                configs.push_back(cfg);
+    for (int num_robots : robot_counts) {
+        const auto& heuristics = (num_robots == 2) ? heuristics_2 : heuristics_1;
+        for (double rate : rates) {
+            for (uint64_t seed : seeds) {
+                for (const auto& heuristic : heuristics) {
+                    BenchmarkConfig cfg;
+                    cfg.rate_boxes_per_hour = rate;
+                    cfg.cv                  = 0.3;
+                    cfg.input_phase_ticks   = phase;
+                    cfg.num_destinations    = 20;
+                    cfg.seed                = seed;
+                    cfg.heuristic           = heuristic;
+                    cfg.num_robots          = num_robots;
+                    cfg.num_aisles          = SILO_AISLES;
+                    cfg.num_slots           = SILO_SLOTS;
+                    cfg.num_y               = SILO_Y;
+                    cfg.num_sides           = SILO_SIDES;
+                    cfg.silo_csv_path       = csv;
+                    configs.push_back(cfg);
+                }
             }
         }
     }
@@ -73,6 +90,7 @@ int main(int argc, char** argv) {
             {"heuristic",                r.heuristic},
             {"num_robots",               r.num_robots},
             {"num_aisles",               r.num_aisles},
+            {"pre_populated",            r.pre_populated},
             {"rate_boxes_per_hour",      r.rate_boxes_per_hour},
             {"mean_inter_arrival_ticks", r.mean_inter_arrival_ticks},
             {"std_inter_arrival_ticks",  r.std_inter_arrival_ticks},
@@ -86,6 +104,8 @@ int main(int argc, char** argv) {
             {"pct_pallets_filled",       r.pct_pallets_filled},
             {"ticks_per_filled_pallet",  r.ticks_per_filled_pallet},
             {"avg_pallet_capacity",      r.avg_pallet_capacity},
+            {"boxes_in_warehouse",       r.boxes_in_warehouse},
+            {"occupation_pct",           r.occupation_pct},
         });
     }
 

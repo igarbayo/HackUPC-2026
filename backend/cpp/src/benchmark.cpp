@@ -1,5 +1,6 @@
 #include "benchmark.h"
 #include "simulation.h"
+#include "SiloLoader.h"
 #include "InputBelt.h"
 #include "Pallet.h"
 #include <cmath>
@@ -26,6 +27,7 @@ BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
     p.num_slots         = cfg.num_slots;
     p.num_y             = cfg.num_y;
     p.num_sides         = cfg.num_sides;
+    p.num_robots        = cfg.num_robots;
     p.input_phase_ticks = cfg.input_phase_ticks;
     p.heuristic_name    = cfg.heuristic;
     p.heuristic_seed    = cfg.seed;
@@ -33,12 +35,16 @@ BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
 
     while (auto b = belt.pop()) p.boxes.push_back(std::move(*b));
 
+    if (!cfg.silo_csv_path.empty())
+        p.initial_boxes = loadSiloCSV(cfg.silo_csv_path);
+
     const auto events = run_simulation(p);
 
     BenchmarkResult r;
     r.heuristic                = cfg.heuristic;
     r.num_robots               = cfg.num_robots;
     r.num_aisles               = cfg.num_aisles;
+    r.pre_populated            = !cfg.silo_csv_path.empty();
     r.rate_boxes_per_hour      = cfg.rate_boxes_per_hour;
     r.mean_inter_arrival_ticks = mean;
     r.std_inter_arrival_ticks  = std;
@@ -57,6 +63,17 @@ BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
             if (e.box_count == Pallet::CAPACITY) ++r.filled_pallets;
         }
     }
+
+    int stored = 0, retrieved = 0;
+    for (const auto& e : events) {
+        if (e.type == "box_stored")    ++stored;
+        if (e.type == "box_retrieved") ++retrieved;
+    }
+    const int initial  = static_cast<int>(p.initial_boxes.size());
+    const int capacity = cfg.num_aisles * cfg.num_slots * cfg.num_y * cfg.num_sides * 2;
+    r.boxes_in_warehouse = initial + stored - retrieved;
+    r.occupation_pct     = capacity > 0
+        ? 100.0 * r.boxes_in_warehouse / capacity : 0.0;
 
     if (r.total_pallets_sent > 0) {
         r.pct_pallets_filled  = static_cast<double>(r.filled_pallets) / r.total_pallets_sent;

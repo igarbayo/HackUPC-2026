@@ -61,34 +61,26 @@ static void setupHackupcState(Aisle& aisle) {
     {
         Box a1 = makeBox("A1", "A");
         Box a2 = makeBox("A2", "A");
-        aisle.slotAt({1,1,1,1}).place(a1);
-        aisle.notifyBoxPlaced(a1, {1,1,1,1});
         aisle.slotAt({1,1,1,1}).placeZ2(a2);
         aisle.notifyBoxPlaced(a2, {1,1,2,1});
+        aisle.slotAt({1,1,1,1}).place(a1);
+        aisle.notifyBoxPlaced(a1, {1,1,1,1});
     }
 
     // x=2: both z=1 and z=2 empty — already clean from constructor, no action.
 
-    // x=3: z1=empty, z2=A (trick: place dummy at z1 → placeZ2(A) → take dummy)
+    // x=3: z1=empty, z2=A
     {
-        Box dummy = makeBox("_dx3_", "_block_");
         Box a3    = makeBox("A3", "A");
-        aisle.slotAt({3,1,1,1}).place(dummy);
-        aisle.notifyBoxPlaced(dummy, {3,1,1,1});
         aisle.slotAt({3,1,1,1}).placeZ2(a3);
-        Box taken = aisle.slotAt({3,1,1,1}).take();
-        aisle.notifyBoxTaken(taken, {3,1,1,1});
+        aisle.notifyBoxPlaced(a3, {3,1,2,1});
     }
 
     // x=4: z1=empty, z2=B
     {
-        Box dummy = makeBox("_dx4_", "_block_");
         Box b1    = makeBox("B1", "B");
-        aisle.slotAt({4,1,1,1}).place(dummy);
-        aisle.notifyBoxPlaced(dummy, {4,1,1,1});
         aisle.slotAt({4,1,1,1}).placeZ2(b1);
-        Box taken = aisle.slotAt({4,1,1,1}).take();
-        aisle.notifyBoxTaken(taken, {4,1,1,1});
+        aisle.notifyBoxPlaced(b1, {4,1,2,1});
     }
 }
 

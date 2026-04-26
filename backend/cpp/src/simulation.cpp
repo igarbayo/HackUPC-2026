@@ -4,6 +4,13 @@
 #include "Robot.h"
 #include "InputBelt.h"
 #include "Scheduler.h"
+#include <algorithm>
+
+static std::string resolveHeuristic(const Params& p) {
+    if (p.heuristic_name.empty() || p.heuristic_name == "auto")
+        return (p.num_robots >= 2) ? "coop" : "stock_proximity";
+    return p.heuristic_name;
+}
 
 std::vector<Event> run_simulation(const Params& p) {
     std::vector<Event> log;
@@ -15,13 +22,18 @@ std::vector<Event> run_simulation(const Params& p) {
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
 
-    for (const auto& pb : p.initial_boxes)
-        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    {
+        auto sorted = p.initial_boxes;
+        std::sort(sorted.begin(), sorted.end(),
+            [](const PrePlacedBox& a, const PrePlacedBox& b){ return a.pos.z > b.pos.z; });
+        for (const auto& pb : sorted)
+            container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    }
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
-        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+        robots[i].setHeuristic(makeHeuristic(resolveHeuristic(p), p.heuristic_seed));
     }
 
     Scheduler          scheduler(container, robots, belt, &log);
@@ -52,13 +64,18 @@ SimulationResult run_simulation_with_state(const Params& p) {
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
 
-    for (const auto& pb : p.initial_boxes)
-        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    {
+        auto sorted = p.initial_boxes;
+        std::sort(sorted.begin(), sorted.end(),
+            [](const PrePlacedBox& a, const PrePlacedBox& b){ return a.pos.z > b.pos.z; });
+        for (const auto& pb : sorted)
+            container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    }
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
-        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+        robots[i].setHeuristic(makeHeuristic(resolveHeuristic(p), p.heuristic_seed));
     }
 
     Scheduler          scheduler(container, robots, belt, &result.events);
@@ -112,13 +129,18 @@ std::vector<Event> run_simulation_streaming(const Params& p, SnapshotQueue& queu
     Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
     AisleContainer     container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
 
-    for (const auto& pb : p.initial_boxes)
-        container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    {
+        auto sorted = p.initial_boxes;
+        std::sort(sorted.begin(), sorted.end(),
+            [](const PrePlacedBox& a, const PrePlacedBox& b){ return a.pos.z > b.pos.z; });
+        for (const auto& pb : sorted)
+            container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    }
 
     std::vector<Robot> robots(p.num_robots);
     for (int i = 0; i < (int)robots.size(); ++i) {
         robots[i].setRobotId(i);
-        robots[i].setHeuristic(makeHeuristic(p.heuristic_name, p.heuristic_seed));
+        robots[i].setHeuristic(makeHeuristic(resolveHeuristic(p), p.heuristic_seed));
     }
 
     Scheduler          scheduler(container, robots, belt, &events);
