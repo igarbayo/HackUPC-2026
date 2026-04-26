@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { FF, T } from '@/lib/tokens'
 import Hr from './ui/Hr'
 import { useSimulationStream } from '@/lib/SimulationStreamContext'
@@ -248,9 +248,85 @@ export default function PanelParametros() {
   const [customWeights, setCustomWeights] = useState<Weight[]>([...PRESET_BASIC.weights])
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [csvId, setCsvId]           = useState<string | null>(null)
+  const [csvFileName, setCsvFileName] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isCustom = preset === 'custom'
   const base = PRESETS_MAP[lastPresetKey]
+
+  const csvLocked = csvId !== null
+  const CSV_TOPO_FIELDS = new Set(['num_aisles', 'num_sides', 'num_slots', 'num_y'])
+
+  function parseCsvClientSide(text: string) {
+    const lines = text.trim().split('\n').slice(1) // skip header
+    const boxes: { aisle: number; side: number; x: number; y: number; z: number; id: string; destination: string }[] = []
+    let maxAisle = 0, maxSide = 0, maxX = 0, maxY = 0
+    for (const line of lines) {
+      const [posicion, etiqueta] = line.split(',').map(s => s.trim())
+      if (!posicion || posicion.length !== 11) continue
+      const aisle = parseInt(posicion.slice(0, 2), 10)
+      const side  = parseInt(posicion.slice(2, 4), 10)
+      const x     = parseInt(posicion.slice(4, 7), 10)
+      const y     = parseInt(posicion.slice(7, 9), 10)
+      const z     = parseInt(posicion.slice(9, 11), 10)
+      maxAisle = Math.max(maxAisle, aisle)
+      maxSide  = Math.max(maxSide, side)
+      maxX     = Math.max(maxX, x)
+      maxY     = Math.max(maxY, y)
+      if (etiqueta && etiqueta.length >= 15) {
+        boxes.push({ aisle, side, x, y, z, id: etiqueta, destination: etiqueta.slice(7, 15) })
+      }
+    }
+    const topology = { num_aisles: maxAisle, num_sides: maxSide, num_slots: maxX, num_y: maxY }
+    const byAisle: Record<number, typeof boxes> = {}
+    for (const b of boxes) { (byAisle[b.aisle] ??= []).push(b) }
+    const aisleStats = Object.fromEntries(
+      Object.entries(byAisle).map(([a, bs]) => [
+        `aisle_${a}`,
+        { total_boxes: bs.length, sample: bs.slice(0, 3) },
+      ])
+    )
+    console.group(`[SILOS] CSV parsed — ${boxes.length} pre-placed boxes`)
+    console.log('Topology inferred:', topology)
+    console.log('Boxes per aisle:', aisleStats)
+    console.log('Full box list (first 10):', boxes.slice(0, 10))
+    console.groupEnd()
+    return topology
+  }
+
+  async function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const text = await file.text()
+    parseCsvClientSide(text)
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch(`${API_URL}/simulations/parse-csv`, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setCsvId(data.csv_id)
+      setCsvFileName(file.name)
+      setCustomScalars(s => ({
+        ...s,
+        num_aisles: String(data.num_aisles),
+        num_sides:  String(data.num_sides),
+        num_slots:  String(data.num_slots),
+        num_y:      String(data.num_y),
+      }))
+    } catch {
+      setCsvId(null)
+      setCsvFileName(null)
+    }
+  }
+
+  function clearCsv() {
+    setCsvId(null)
+    setCsvFileName(null)
+    setCustomScalars(s => ({ ...s, num_aisles: '', num_sides: '', num_slots: '', num_y: '' }))
+  }
 
   function selectPreset(p: Preset) {
     if (p === 'basic' || p === 'advanced') {
@@ -355,6 +431,7 @@ export default function PanelParametros() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...structure,
+          ...(csvId ? { csv_id: csvId } : {}),
           generator: {
             ...genParams,
             weights: Object.fromEntries(genParams.weights.map(w => [w.name, w.value])),
@@ -381,14 +458,15 @@ export default function PanelParametros() {
     max: number,
   ) {
     const def = STRUCTURE_DEFAULTS[field]
+    const locked = csvLocked && CSV_TOPO_FIELDS.has(field)
     return (
       <NumInput
         value={isCustom ? customScalars[field] : String(def)}
-        placeholder={isCustom ? String(def) : undefined}
+        placeholder={isCustom && !locked ? String(def) : undefined}
         step={1}
         min={min}
         max={max}
-        disabled={!isCustom}
+        disabled={!isCustom || locked}
         onChange={v => setCustomScalars(s => ({ ...s, [field]: v }))}
       />
     )
@@ -458,7 +536,35 @@ export default function PanelParametros() {
       <Hr my={24} />
 
       {/* ── Warehouse structure ── */}
-      <div style={{ ...T.label, color: '#000', marginBottom: 16 }}>Warehouse structure</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ ...T.label, color: '#000' }}>Warehouse structure</div>
+        {isCustom && (
+          csvFileName ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9, color: '#22c55e', letterSpacing: '0.08em', fontFamily: FF }}>
+                ✓ {csvFileName}
+              </span>
+              <span
+                onClick={clearCsv}
+                style={{ fontSize: 13, color: '#aaa', cursor: 'pointer', lineHeight: 1, userSelect: 'none' }}
+              >×</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                padding: '4px 10px',
+                border: '1px solid #e0e0e0', background: 'transparent',
+                fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
+                fontFamily: FF, color: '#555', cursor: 'pointer',
+              }}
+            >
+              Upload CSV
+            </button>
+          )
+        )}
+        <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvUpload} />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px 32px', marginBottom: 4 }}>
         <Field label="Aisles (1–4)">{structNum('num_aisles', 1, 4)}</Field>
         <Field label="Sides (1–2)">{structNum('num_sides',  1, 2)}</Field>
@@ -677,7 +783,7 @@ export default function PanelParametros() {
       </button>
 
       <Hr my={20} />
-      <div style={T.micro}>v1.0 · SILOS Input Generator</div>
+      <div style={T.micro}>v1.0 · XEITECH Input Generator</div>
     </div>
   )
 }

@@ -5,3 +5,4 @@ pydantic
 httpx
 pytest
 pytest-anyio
+python-multipart

@@ -107,6 +107,7 @@ class SimulationParams(BaseModel):
     max_ticks: int = 10000
     boxes: Optional[list[BoxInput]] = None
     generator: Optional[GeneratorParams] = None
+    csv_id: Optional[str] = None
 
 
 class SimulationRecord(BaseModel):

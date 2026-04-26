@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { FF, T } from '@/lib/tokens'
 
 interface NavBarProps {
@@ -17,14 +18,13 @@ export default function NavBar({ liveCount }: NavBarProps) {
     }}>
       {/* Center brand */}
       <Link href="/" style={{
-        ...T.brand,
         position: 'absolute',
         left: '50%',
         transform: 'translateX(-50%)',
-        color: '#000',
         textDecoration: 'none',
+        display: 'flex', alignItems: 'center',
       }}>
-        SILOS
+        <Image src="/logo.png" alt="XEITECH" height={32} width={120} style={{ objectFit: 'contain' }} />
       </Link>
 
       {/* Right: live indicator */}

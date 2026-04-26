@@ -3,7 +3,7 @@ import './globals.css'
 import AppShell from '@/components/AppShell'
 
 export const metadata: Metadata = {
-  title: 'SILOS',
+  title: 'XEITECH',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -199,10 +199,12 @@ class SiloScene {
     const RD    = cfg.rackDepth
     const TH    = cfg.levels * cfg.levelHeight
     const PS    = cfg.postSize
-    const nCols = Math.floor(cfg.depth / 2) + 1
+    const nCols  = Math.floor(cfg.depth / 2) + 1
+    const safeZ  = (ci: number) => nCols === 1 ? 0 : -DL / 2 + ci * (DL / (nCols - 1))
+    const minDL  = Math.max(DL, PS)
 
     for (let ci = 0; ci < nCols; ci++) {
-      const z        = -DL / 2 + ci * (DL / (nCols - 1))
+      const z        = safeZ(ci)
       const postXs: [number, number][] = [[-HA - RD, z], [-HA, z]]
       if (cfg.sides > 1) postXs.push([HA, z], [HA + RD, z])
       for (const [px, pz] of postXs) {
@@ -216,7 +218,7 @@ class SiloScene {
     for (let l = 0; l <= cfg.levels; l++) {
       const y = l * cfg.levelHeight
       const beamH = 0.065, beamW = 0.055
-      const bGeo  = new THREE.BoxGeometry(beamW, beamH, DL)
+      const bGeo  = new THREE.BoxGeometry(beamW, beamH, minDL)
       const beamXs: number[] = [-HA - RD + 0.04, -HA - 0.04]
       if (cfg.sides > 1) beamXs.push(HA + 0.04, HA + RD - 0.04)
       for (const px of beamXs) {
@@ -241,7 +243,7 @@ class SiloScene {
 
     for (let l = 0; l < cfg.levels; l++) {
       const ry     = l * cfg.levelHeight + 0.04
-      const railGeo = new THREE.BoxGeometry(0.045, 0.03, DL)
+      const railGeo = new THREE.BoxGeometry(0.045, 0.03, minDL)
       for (const rx of [-0.38, 0.38]) {
         const rail = new THREE.Mesh(railGeo, M.rail)
         rail.position.set(rx, ry, 0)
@@ -378,8 +380,7 @@ class SiloScene {
         const li    = sh.y_level - 1
         const entry = data.shuttles[li]
         if (entry) {
-          const shuttleX = sh.position.x - 1
-          entry.worldZ   = -DL / 2 + (shuttleX + 0.5) * (DL / depth)
+          entry.worldZ = -DL / 2 + (sh.position.x + 0.5) * (DL / depth)
           entry.carrying = sh.is_carrying
         }
 
@@ -396,7 +397,7 @@ class SiloScene {
         for (const box of sh.floor_boxes) {
           if (!box.position) continue
           const si     = box.position.side - 1
-          const di     = box.position.x - 1
+          const di     = box.position.x
           const zLayer = box.position.z - 1
           if (si >= 0 && si < this.cfg.sides && di >= 0 && di < depth && zLayer >= 0 && zLayer < 2) {
             const m = data.boxGrid[li]?.[si]?.[di]?.[zLayer]

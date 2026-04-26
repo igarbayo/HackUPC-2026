@@ -109,7 +109,7 @@ export default function PanelConfiguracion({ cfg, setCfg, apiUrl, setApiUrl }: P
       <CfgToggle label="Niebla de fondo" value={fogOn}    onChange={setFogOn}    />
 
       <Hr my={20} />
-      <div style={T.micro}>v1.0 · SILOS Logistics Viewer</div>
+      <div style={T.micro}>v1.0 · XEITECH Logistics Viewer</div>
     </div>
   )
 }
