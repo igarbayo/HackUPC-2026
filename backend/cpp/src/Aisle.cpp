@@ -185,25 +185,6 @@ void Aisle::notifyBoxTaken(const Box& b, Position where) {
     }
     // z2 removal: z1 is still empty, so x was already in freeZ1_ (no change there)
 
-    // Recompute oldest arrival for this family (removed box may have been the oldest)
-    // TO-DO: comprobar si oldestArrivalByFamily_se usa (actualmente no). Si no se usa eliminar el atributo y toda la logica relacionada
-    oldestArrivalByFamily_.erase(b.family());
-    for (int s = 1; s <= numSides_; ++s) {
-        for (int y = 1; y <= numY_; ++y) {
-            for (int x = 0; x < length_; ++x) {
-                const Slot& sl = slots_[s-1][y-1][x];
-                auto check = [&](const Box* bx) {
-                    if (!bx || bx->family() != b.family()) return;
-                    auto it = oldestArrivalByFamily_.find(b.family());
-                    if (it == oldestArrivalByFamily_.end() || bx->arrivalTick() < it->second)
-                        oldestArrivalByFamily_[b.family()] = bx->arrivalTick();
-                };
-                check(sl.peek());
-                check(sl.peekZ2());
-            }
-        }
-    }
-
     // Release any stale input claim on this slot (shouldn't normally be set for outputs)
     claimedInputSlots_[key].erase(where.x);
 
