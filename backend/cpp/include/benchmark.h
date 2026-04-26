@@ -45,6 +45,10 @@ struct BenchmarkResult {
     double avg_pallet_capacity     = 0.0;  // total_boxes_sent / (total_pallets_sent * CAPACITY)
     int    boxes_in_warehouse      = 0;    // boxes remaining in the silo at end
     double occupation_pct          = 0.0;  // boxes_in_warehouse / total_capacity * 100
+
+    // --- shuttle movement totals (summed across all aisles) ---
+    long long total_shuttle_moves_x = 0;   // cumulative x-steps across all shuttles
+    long long total_shuttle_moves_z = 0;   // cumulative z-arm extensions across all shuttles
 };
 
 BenchmarkResult run_benchmark(const BenchmarkConfig& cfg);

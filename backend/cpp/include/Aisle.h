@@ -74,6 +74,9 @@ public:
     const std::vector<Shuttle>& shuttles() const;
     AisleSnap           snapshot() const;
 
+    long long           totalMovesX() const;
+    long long           totalMovesZ() const;
+
     // Find the best accessible box of the given family for a specific shuttle.
     // Cost = dist(shuttle→box) + dist(box→port). Ties broken by largest x (prefer freeing far slots).
     std::optional<Position> findBestBoxForShuttle(const Family& f, Position shuttlePos) const;

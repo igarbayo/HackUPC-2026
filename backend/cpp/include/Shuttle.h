@@ -18,6 +18,8 @@ public:
     bool        isOnMission() const;
     Phase       phase()       const;
     const Box*  carriedBox()  const;   // nullptr if not carrying
+    long long   movesX()      const;   // cumulative x-steps taken
+    long long   movesZ()      const;   // cumulative z-arm extensions (z value per operation)
 
     // For output: pickup from a storage slot, drop at output port
     void        assignOutputMission(Position pickupFrom, Position dropAt);
@@ -38,5 +40,7 @@ private:
 
     void moveToward(Position target);
 
-    int manipulationTimer_ = 0;
+    int       manipulationTimer_ = 0;
+    long long movesX_            = 0;
+    long long movesZ_            = 0;
 };

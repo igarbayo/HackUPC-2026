@@ -38,7 +38,8 @@ BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
     if (!cfg.silo_csv_path.empty())
         p.initial_boxes = loadSiloCSV(cfg.silo_csv_path);
 
-    const auto events = run_simulation(p);
+    const auto sim = run_simulation_with_summary(p);
+    const auto& events = sim.events;
 
     BenchmarkResult r;
     r.heuristic                = cfg.heuristic;
@@ -83,6 +84,9 @@ BenchmarkResult run_benchmark(const BenchmarkConfig& cfg) {
     if (r.filled_pallets > 0) {
         r.ticks_per_filled_pallet = static_cast<double>(r.finish_tick) / r.filled_pallets;
     }
+
+    r.total_shuttle_moves_x = sim.total_shuttle_moves_x;
+    r.total_shuttle_moves_z = sim.total_shuttle_moves_z;
 
     return r;
 }

@@ -106,6 +106,8 @@ int main(int argc, char** argv) {
             {"avg_pallet_capacity",      r.avg_pallet_capacity},
             {"boxes_in_warehouse",       r.boxes_in_warehouse},
             {"occupation_pct",           r.occupation_pct},
+            {"total_shuttle_moves_x",    r.total_shuttle_moves_x},
+            {"total_shuttle_moves_z",    r.total_shuttle_moves_z},
         });
     }
 
