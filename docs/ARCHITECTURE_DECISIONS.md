@@ -107,9 +107,9 @@ score(f) = available(f) / (avgDist(f) + 1)
 ```
 
 | Term           | Meaning                                                                                      |
-| -------------- | -------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------- |
+| -------------- | -------------------------------------------------------------------------------------------- |
 | `available(f)` | `countByFamily[f] − reservedByFamily[f]` — boxes in the aisle that are not already in-flight |
-| `avgDist(f)`   | mean `                                                                                       | x − port.x | ` over all boxes of family f — proxy for shuttle retrieval cost |
+| `avgDist(f)`   | mean <code>&#124;x − port.x&#124;</code> over all boxes of family f — proxy for shuttle retrieval cost |
 
 A family with many nearby boxes scores high; a family with few or distant boxes scores low. A new pallet is only opened if `available ≥ OPEN_THRESHOLD` (= `CAPACITY / 2` = 6). If no family clears the threshold (end-of-batch drain), the threshold is bypassed and the best-scoring family wins anyway.
 
@@ -163,13 +163,13 @@ t = 10 + D
 
 where D is the Manhattan distance from the shuttle to the box plus the box to the port. The minimum possible D is 0 (box already at the port), giving `t_min = 10 s` per box.
 
-A pallet holds 12 boxes (CAPACITY = 12), so the theoretical lower bound to fill one pallet is:
+A pallet holds 12 boxes (CAPACITY = 12). As shuttles move independently and we can have 4 aisles (8 shuttles per aisle, 8×4=32), we can obtain up to 32 boxes at the same time. So the theoretical lower bound to fill one pallet is given by the time to retrieve 1 box and place it on the shuttle port:
 
 ```
-t_lower = 12 × 10 = 120 s  (2 minutes)
+t_lower = 10 + 10 = 20 s
 ```
 
-Real fill times exceed this because D > 0 for most boxes and the robot serialises retrievals. The benchmark uses this bound as a sanity check: any run completing a pallet in under 120 s indicates a logic error.
+Real fill times exceed this because D > 0 for most boxes and the robot serialises retrievals. The benchmark uses this bound as a sanity check: any run completing a pallet in under 20 s indicates a logic error.
 
 ---
 
