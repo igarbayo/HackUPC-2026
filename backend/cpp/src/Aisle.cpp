@@ -592,3 +592,15 @@ AisleSnap Aisle::snapshot() const {
 
     return snap;
 }
+
+long long Aisle::totalMovesX() const {
+    long long total = 0;
+    for (const auto& s : shuttles_) total += s.movesX();
+    return total;
+}
+
+long long Aisle::totalMovesZ() const {
+    long long total = 0;
+    for (const auto& s : shuttles_) total += s.movesZ();
+    return total;
+}

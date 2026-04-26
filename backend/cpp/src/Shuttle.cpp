@@ -9,6 +9,8 @@ bool           Shuttle::isFree()      const { return phase_ == Phase::Idle; }
 bool           Shuttle::isOnMission() const { return phase_ != Phase::Idle; }
 Shuttle::Phase Shuttle::phase()       const { return phase_; }
 const Box*     Shuttle::carriedBox()  const { return carried_ ? &*carried_ : nullptr; }
+long long      Shuttle::movesX()      const { return movesX_; }
+long long      Shuttle::movesZ()      const { return movesZ_; }
 
 void Shuttle::assignOutputMission(Position pickupFrom, Position dropAt) {
     pickup_ = pickupFrom;
@@ -25,8 +27,8 @@ void Shuttle::assignInputMission(Position pickupFrom, Position dropAt) {
 }
 
 void Shuttle::moveToward(Position target) {
-    if (pos_.x < target.x)      ++pos_.x;
-    else if (pos_.x > target.x) --pos_.x;
+    if (pos_.x < target.x)      { ++pos_.x; ++movesX_; }
+    else if (pos_.x > target.x) { --pos_.x; ++movesX_; }
     // shuttle fixed at its Y level; side/z determined by mission targets
 }
 
@@ -50,6 +52,7 @@ void Shuttle::tick(Aisle& aisle) {
             auto boxOpt = aisle.takeFromInputBuffer();
             if (boxOpt) {
                 carried_ = std::move(*boxOpt);
+                movesZ_ += pickup_.z;
                 phase_ = Phase::MovingToDrop;
             } else {
                 manipulationTimer_ = 1; // retry next tick
@@ -60,11 +63,13 @@ void Shuttle::tick(Aisle& aisle) {
                 Box b = s.takeZ2();
                 aisle.notifyBoxTaken(b, pickup_);
                 carried_ = std::move(b);
+                movesZ_ += 2;
                 phase_ = Phase::MovingToDrop;
             } else if (pickup_.z == 1 && !s.isEmpty()) {
                 Box b = s.take();
                 aisle.notifyBoxTaken(b, pickup_);
                 carried_ = std::move(b);
+                movesZ_ += 1;
                 phase_ = Phase::MovingToDrop;
             } else {
                 manipulationTimer_ = 1; // slot not accessible, retry next tick
@@ -91,8 +96,10 @@ void Shuttle::tick(Aisle& aisle) {
                 else
                     s.place(*carried_);
                 aisle.notifyBoxPlaced(*carried_, drop_);
+                movesZ_ += drop_.z;
             } else {
                 aisle.notifyOutputReady(*carried_);
+                movesZ_ += drop_.z;
             }
             carried_.reset();
         }

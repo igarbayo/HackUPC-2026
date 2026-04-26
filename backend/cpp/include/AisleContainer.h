@@ -19,6 +19,9 @@ public:
     Metadata                metadata() const;
     std::vector<AisleSnap>  snapshot() const;
 
+    long long               totalMovesX() const;
+    long long               totalMovesZ() const;
+
     void               tick();
     void               setEventLog(std::vector<Event>* log);
 

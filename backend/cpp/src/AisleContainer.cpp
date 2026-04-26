@@ -178,3 +178,15 @@ AisleContainer::Metadata AisleContainer::aggregateMeta() const {
 AisleContainer::Metadata AisleContainer::metadata() const {
     return aggregateMeta();
 }
+
+long long AisleContainer::totalMovesX() const {
+    long long total = 0;
+    for (const auto& a : aisles_) total += a.totalMovesX();
+    return total;
+}
+
+long long AisleContainer::totalMovesZ() const {
+    long long total = 0;
+    for (const auto& a : aisles_) total += a.totalMovesZ();
+    return total;
+}

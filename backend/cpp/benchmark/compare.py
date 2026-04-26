@@ -28,14 +28,16 @@ RUN_COLUMNS = [
     ("ticks_per_filled_pallet",  "ticks/filled_pal", ".1f"),
     ("finish_tick",              "finish_tick",      "d"),
     ("occupation_pct",           "occ_%",            ".1f"),
+    ("total_shuttle_moves",      "moves",            "d"),
 ]
 
 # ── aggregate table columns ──────────────────────────────────────────────────
 
 AGG_METRICS = [
-    ("pct_pallets_filled",      "avg pct_filled",       ".3f"),
-    ("avg_pallet_capacity",     "avg avg_cap",           ".3f"),
     ("ticks_per_filled_pallet", "avg ticks/filled_pal",  ".1f"),
+    ("pct_pallets_filled",      "avg pct_filled",        ".3f"),
+    ("avg_pallet_capacity",     "avg avg_cap",            ".3f"),
+    ("total_shuttle_moves",     "avg moves",              ".0f"),
 ]
 
 
@@ -81,6 +83,10 @@ def main():
     if not rows:
         print("No results found.", file=sys.stderr)
         sys.exit(1)
+
+    for row in rows:
+        row["total_shuttle_moves"] = (row.get("total_shuttle_moves_x", 0)
+                                      + row.get("total_shuttle_moves_z", 0))
 
     # ── per-run table ────────────────────────────────────────────────────────
     headers = [c[1] for c in RUN_COLUMNS]

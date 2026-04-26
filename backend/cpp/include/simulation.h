@@ -35,6 +35,16 @@ struct Params {
 // This is the only function Python (via pybind11) needs to call.
 std::vector<Event> run_simulation(const Params& p);
 
+struct SimulationSummary {
+    std::vector<Event> events;
+    long long total_shuttle_moves_x = 0;
+    long long total_shuttle_moves_z = 0;
+};
+
+// Like run_simulation but also returns aggregate shuttle movement counts.
+// Python bindings are unaffected; only benchmark.cpp uses this.
+SimulationSummary run_simulation_with_summary(const Params& p);
+
 struct SimulationResult {
     std::vector<Event>        events;
     std::vector<TickSnapshot> snapshots;

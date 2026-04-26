@@ -54,6 +54,50 @@ std::vector<Event> run_simulation(const Params& p) {
     return log;
 }
 
+SimulationSummary run_simulation_with_summary(const Params& p) {
+    SimulationSummary result;
+
+    InputBelt belt;
+    for (const auto& b : p.boxes)
+        if (b.arrivalTick() <= p.input_phase_ticks) belt.push(b);
+
+    Position port; port.x = -1; port.y = 1; port.z = 1; port.side = 1;
+    AisleContainer container(p.num_aisles, p.num_slots, p.num_y, p.num_sides, port);
+
+    {
+        auto sorted = p.initial_boxes;
+        std::sort(sorted.begin(), sorted.end(),
+            [](const PrePlacedBox& a, const PrePlacedBox& b){ return a.pos.z > b.pos.z; });
+        for (const auto& pb : sorted)
+            container.placeAt(pb.aisle_idx, pb.box, pb.pos);
+    }
+
+    std::vector<Robot> robots(p.num_robots);
+    for (int i = 0; i < (int)robots.size(); ++i) {
+        robots[i].setRobotId(i);
+        robots[i].setHeuristic(makeHeuristic(resolveHeuristic(p), p.heuristic_seed));
+    }
+
+    Scheduler scheduler(container, robots, belt, &result.events);
+
+    for (int t = 0; t < p.max_ticks; ++t) {
+        scheduler.activate();
+
+        const auto meta = container.metadata();
+        const bool done = belt.empty()
+                       && meta.pendingInputs    == 0
+                       && meta.pendingOutputs   == 0
+                       && meta.readyOutputCount == 0
+                       && meta.activeShuttles   == 0;
+        if (done) break;
+    }
+
+    result.events.push_back({"done", scheduler.currentTick(), {}, -1, {}});
+    result.total_shuttle_moves_x = container.totalMovesX();
+    result.total_shuttle_moves_z = container.totalMovesZ();
+    return result;
+}
+
 SimulationResult run_simulation_with_state(const Params& p) {
     SimulationResult result;
 
